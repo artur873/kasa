@@ -64,3 +64,12 @@ Blokujące (osobny agent poprawek, równolegle z 4A/4B):
 
 Ważne: 3. stemmer 4-literowy: fałszywe trafienia (zdrowa żywność, Szpitalna 5, Terapia sp. z o.o.) → kontekst osoby lub pełne słowo; przycisk „to nie jest wrażliwe” w kolejce (4). 4. `l1_semantics.input_pseudonymized` bez terminu wbrew 90 dniom → tylko skrót w L1 (5). 5. `sensitive` liczone tylko z tytułu, nie z nazwy kontrahenta; blokada nie jest trwałą flagą → ponawiana co przebieg (4). 7. terms/context ładowane raz na przebieg (4/5). 8. `shown_at` nadpisywany każdym GET → zaniżony czas decyzji (4).
 Drobne: 9. błędy walidacji pydantic logują fragment odpowiedzi modelu (`input`). 10. wygasanie payloadów tylko ręcznie (5). 11. TLS dla panelu w docs. 12. bramka 3 nie sprawdza adresów.
+
+## Fazy 4A i 4B (5.11.2026)
+
+Blokujące (przed fazą 5):
+1. `matching/calibrate.py`: kalibracja wybiera parametry na tych samych 80 etykietach, na których raportuje „0 fałszywych” → walidacja krzyżowa po miesiącu/kontrahencie, wybór tylko zestawów z 0 fałszywych we wszystkich foldach, jawna górna granica Wilsona błędu w `calibration_result` i ostrzeżenie w `match status`, dopóki < 600 etykiet.
+2. `matching/engine.py` ok. 500: numer faktury + kwota + kontrahent zgodny TYLKO po nazwie daje `hard` → twardy dowód tylko ze STRONG_LINKS (NIP/IBAN); nazwa zostaje sygnałem punktowym.
+
+Ważne: 3. reguła nauczona `match_strategy` w auto czyni twardym każdego kandydata bez scope kontrahenta i bez jedyności (4C/5). 4. rezerwacja salda przez kandydata, który nie stał się decyzją → fałszywa nadpłata (5). 5. progi grupowania par nie są uczone, tylko m/u (5). 6. „koszt jeden, dowodów wiele”: silnik nie zapisuje `l3_match` do wiersza arkusza przy dokumencie; raport polega na heurystyce osoby → `evidence_only` w grupie (5). 7. częściowe wpłaty faktury walutowej nie domkną się co do grosza → ostatnia rata z `fx` (5). 8. sygnał A „unikalny token” bez okna dat (5). 9. transfer własny bez decyzji liczony poza „niesparowane” (5). 10. remis trzech faktur: fakt wymienia tylko dwie (4C). 11. etykiety z panelu muszą mieć podtyp (4C docs).
+Drobne: 12. Revolut: waga nazwy klienta z tytułu za niska, brak `payer_hint`. 13. `sensitive` tylko z tytułu, nie z nazwy kontrahenta. 14. stałe dyskretyzacji cech par poza `__param__`. 15. brakujący numer z tytułu (faktura jeszcze nie w KSeF) → odłożyć do następnego przebiegu zamiast kolejki.
