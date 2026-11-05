@@ -98,6 +98,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    from kasa.core.settings import load_secrets
+
+    load_secrets()                                  # keys pasted in /settings (env variables win)
     args = build_parser().parse_args(argv)
     args.database_url = args.database_url or database_url()
     try:

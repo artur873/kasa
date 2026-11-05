@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Ustawienia - Kasa{% endblock %}
+{% block body %}
+<h1 style="font-size:24px;margin:8px 0 4px">Klucze i połączenia</h1>
+<p class="muted">Wklej klucz, kliknij „Zapisz i sprawdź”. Kasa zapisuje je w prywatnym pliku na tym komputerze
+(<code class="small">{{ home }}</code>, poza gitem) i sama wstawia tam, gdzie są potrzebne. Zapisanych wartości
+nie pokazuje: widzisz tylko końcówkę. Puste pole = bez zmian.</p>
+
+{% if msg %}<div class="{{ 'okbox' if ok else 'error' }}">{{ msg }}</div>{% endif %}
+
+{% for item in groups %}{% set g = item.g %}
+<form class="card" method="post" action="/settings/{{ g.slug }}" id="{{ g.slug }}" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+    <h2 style="font-size:19px;margin:0">{{ g.title }}</h2>
+    {% if g.provider_key %}
+      <span class="badge {{ 'high' if item.live else '' }}">{{ 'prawdziwe dane' if item.live else 'dane testowe' }}</span>
+    {% else %}
+      <span class="badge {{ 'high' if item.filled else 'medium' }}">{{ 'ustawione' if item.filled else 'do zrobienia' }}</span>
+    {% endif %}
+  </div>
+  <p class="muted small">{{ g.intro }}{% if g.docs %} Instrukcja: <code>{{ g.docs }}</code>.{% endif %}</p>
+
+  {% for x in item.fields %}{% set f = x.f %}
+  <label class="field">
+    <span class="flabel">{{ f.label }}
+      {% if x.shown and f.kind not in ('text','choice') %}<span class="badge high">{{ x.shown }}</span>{% endif %}
+      {% if x.source == 'env' %}<span class="badge">ze zmiennej środowiska</span>{% endif %}
+    </span>
+    {% if f.kind == 'choice' %}
+      <select name="{{ f.key }}">{% for c in f.choices %}<option value="{{ c }}" {{ 'selected' if c == x.value }}>{{ c }}</option>{% endfor %}</select>
+    {% elif f.kind == 'file' %}
+      <textarea name="{{ f.key }}" rows="4" spellcheck="false" placeholder="{{ f.placeholder }}"></textarea>
+    {% elif f.kind == 'text' %}
+      <input type="text" name="{{ f.key }}" value="{{ x.value }}" placeholder="{{ f.placeholder }}" spellcheck="false">
+    {% else %}
+      <div class="row">
+        <input type="password" name="{{ f.key }}" placeholder="{{ 'zapisane - wklej nowy, żeby zmienić' if x.shown else (f.placeholder or 'wklej tutaj') }}" spellcheck="false" autocomplete="new-password">
+        {% if f.kind == 'generated' %}<button class="secondary" name="action" value="generate:{{ f.key }}" style="flex:0 0 auto;width:auto">Wygeneruj</button>{% endif %}
+      </div>
+    {% endif %}
+    {% if f.help %}<span class="muted small">{{ f.help }}</span>{% endif %}
+  </label>
+  {% endfor %}
+  {% if g.slug == 'privacy' %}
+    <label class="small"><input type="checkbox" name="confirm" value="1"> Rozumiem, że zmiana istniejącego sekretu da nowe kody osób</label>
+  {% endif %}
+  <button name="action" value="save" style="margin-top:12px">Zapisz i sprawdź</button>
+</form>
+{% endfor %}
+
+<form class="card" method="post" action="/settings-export">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <h2 style="font-size:19px;margin:0 0 6px">Przenieś do innego środowiska</h2>
+  <p class="muted small">Pokazuje wszystkie wartości jawnie w formacie KLUCZ=wartość, do wklejenia w ustawieniach
+  środowiska chmurowego albo na serwerze. Otwieraj tylko na swoim ekranie.</p>
+  <button class="secondary">Pokaż zmienne środowiska</button>
+</form>
+<style>
+  .field { display: block; margin: 0 0 14px; }
+  .flabel { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-weight: 600; margin-bottom: 6px; }
+  .okbox { background: #e7f4ec; color: var(--ok); padding: 12px; border-radius: 10px; margin-bottom: 12px; }
+  @media (prefers-color-scheme: dark) { .okbox { background: #17301f; } .error { background: #3a1717; } }
+  code { word-break: break-all; }
+  input[type=password] { width: 100%; font: inherit; padding: 12px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); }
+</style>
+{% endblock %}

@@ -13,6 +13,7 @@ from __future__ import annotations
 import getpass
 import hmac
 import os
+import secrets
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
@@ -47,13 +48,17 @@ def _url_factory(url: str | None) -> ConnectionFactory:
 def create_app(*, database_url: str | None = None, connection_factory: ConnectionFactory | None = None,
                token: str | None = None, user: str | None = None, company: str | None = None) -> FastAPI:
     """The panel application. ``token=None`` takes ``KASA_WEB_TOKEN`` (empty = no token required)."""
-    from kasa.web.routers import control_sets, dashboard, queue
+    from kasa.core.settings import load_secrets
+    from kasa.web.routers import control_sets, dashboard, queue, settings
+
+    load_secrets()
 
     app = FastAPI(title="Kasa - panel", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
     app.state.connection_factory = connection_factory or _url_factory(database_url)
     app.state.token = token if token is not None else os.environ.get(TOKEN_ENV, "")
     app.state.user = user or os.environ.get(USER_ENV) or getpass.getuser()
     app.state.company = company or os.environ.get(COMPANY_ENV) or None
+    app.state.csrf = secrets.token_urlsafe(24)
 
     @app.middleware("http")
     async def require_token(request: Request, call_next: Callable[[Request], Any]) -> Any:
@@ -86,6 +91,7 @@ def create_app(*, database_url: str | None = None, connection_factory: Connectio
     app.include_router(queue.api, prefix="/api")
     app.include_router(dashboard.router)
     app.include_router(dashboard.api, prefix="/api")
+    app.include_router(settings.router)
     return app
 
 

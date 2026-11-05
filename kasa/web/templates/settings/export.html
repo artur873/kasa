@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Zmienne środowiska - Kasa{% endblock %}
+{% block body %}
+<div class="card">
+  <h1 style="font-size:20px;margin:0 0 6px">Zmienne środowiska</h1>
+  <p class="muted small">Skopiuj i wklej w ustawieniach środowiska (jedna zmienna w linii). Wartości wieloliniowe
+  (klucze PEM, JSON) są zapisane w cudzysłowie ze znakami \n, Kasa je odczyta. Zamknij stronę po skopiowaniu.</p>
+  <textarea readonly rows="14" style="font: 13px/1.4 ui-monospace, monospace" onclick="this.select()">{% for l in lines %}{{ l }}
+{% endfor %}</textarea>
+  <p><a class="button secondary" href="/settings">Wróć</a></p>
+</div>
+{% endblock %}
