@@ -507,7 +507,7 @@ def register(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--by", help=argparse.SUPPRESS)
     p.set_defaults(handler=lambda a: _run(cmd_rules_mine, a))
 
-    a = sub.add_parser("audit", help="audyt automatu: 2% decyzji miesięcznie (min. 20)")
+    a = sub.add_parser("audit", help="audyt automatu: 2%% decyzji miesięcznie (min. 20)")
     as_ = a.add_subparsers(dest="audit_command", required=True, metavar="akcja")
     p = as_.add_parser("sample", help="wylosuj próbkę miesiąca (domyślnie poprzedni)")
     common(p)
