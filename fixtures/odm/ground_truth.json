@@ -7780,7 +7780,14 @@
           "+48500975639"
         ],
         "iban": "PL10114958040940956375786126",
-        "role": "pracownik (PM)"
+        "role": "pracownik (PM)",
+        "address": {
+          "line1": "ul. Ogrodowa 14/2",
+          "line2": "00-876 Warszawa",
+          "street": "Ogrodowa",
+          "postal_code": "00-876",
+          "city": "Warszawa"
+        }
       },
       {
         "name": "Bartłomiej Sowiński",
@@ -7791,7 +7798,8 @@
           "+48500902196"
         ],
         "iban": "PL08102021116685345877523743",
-        "role": "pracownik"
+        "role": "pracownik",
+        "address": null
       },
       {
         "name": "Karolina Wierzchowska",
@@ -7802,7 +7810,8 @@
           "+48500549307"
         ],
         "iban": "PL21105758378905183047944399",
-        "role": "pracownik"
+        "role": "pracownik",
+        "address": null
       },
       {
         "name": "Tomasz Grabowiecki",
@@ -7813,7 +7822,8 @@
           "+48500384462"
         ],
         "iban": "PL15109859848014124236848141",
-        "role": "pracownik (dłużnik w egzekucji)"
+        "role": "pracownik (dłużnik w egzekucji)",
+        "address": null
       },
       {
         "name": "Marek Zawadzki",
@@ -7824,7 +7834,14 @@
           "+48500038158"
         ],
         "iban": "PL28249241152270907285984411",
-        "role": "konferansjer (rachunek)"
+        "role": "konferansjer (rachunek)",
+        "address": {
+          "line1": "ul. Lipowa 12/3",
+          "line2": "31-216 Kraków",
+          "street": "Lipowa",
+          "postal_code": "31-216",
+          "city": "Kraków"
+        }
       },
       {
         "name": "Jakub Wrona",
@@ -7835,7 +7852,8 @@
           "+48500561803"
         ],
         "iban": "PL86114061589352186346519695",
-        "role": "scenograf (umowa o dzieło)"
+        "role": "scenograf (umowa o dzieło)",
+        "address": null
       },
       {
         "name": "Dawid Michalak",
@@ -7846,7 +7864,8 @@
           "+48500063140"
         ],
         "iban": "PL97102507891761592294856313",
-        "role": "pomocnik (BLIK bez wiersza w arkuszu)"
+        "role": "pomocnik (BLIK bez wiersza w arkuszu)",
+        "address": null
       },
       {
         "name": "Maja Lewandowicz",
@@ -7857,7 +7876,8 @@
           "+48500085853"
         ],
         "iban": "PL52102300006941143759214465",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Hanna Drozdowska",
@@ -7868,7 +7888,8 @@
           "+48500667062"
         ],
         "iban": "PL58105879285285923505477536",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Natalia Wójcicka",
@@ -7879,7 +7900,8 @@
           "+48500727230"
         ],
         "iban": "PL39114926728196114941342438",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Julia Sobieraj",
@@ -7890,7 +7912,8 @@
           "+48500117215"
         ],
         "iban": "PL81124982265957599328135898",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Oliwia Karczmarek",
@@ -7901,7 +7924,8 @@
           "+48500405231"
         ],
         "iban": "PL48109724050002618655527978",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Zuzanna Pietrasik",
@@ -7912,7 +7936,8 @@
           "+48500591873"
         ],
         "iban": "PL81102478516189166131047341",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Kinga Rutkowska",
@@ -7923,7 +7948,8 @@
           "+48500883528"
         ],
         "iban": "PL91105235060555203131189683",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Paula Wesołowska",
@@ -7934,7 +7960,8 @@
           "+48500765924"
         ],
         "iban": "PL44114943601490550573275649",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Ewa Jabłonowska",
@@ -7945,7 +7972,8 @@
           "+48500927519"
         ],
         "iban": "PL63249929412242456433333730",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Amelia Zawilska",
@@ -7956,7 +7984,8 @@
           "+48500014009"
         ],
         "iban": "PL97102548595604162699143617",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Lena Kuczyńska",
@@ -7967,7 +7996,8 @@
           "+48500504461"
         ],
         "iban": "PL49124903761350908929212587",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Wiktoria Bartoszek",
@@ -7978,7 +8008,8 @@
           "+48500003489"
         ],
         "iban": "PL83109436656439139305752696",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Alicja Grabarczyk",
@@ -7989,7 +8020,8 @@
           "+48500993510"
         ],
         "iban": "PL84105328853782606695304902",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Laura Mikulska",
@@ -8000,7 +8032,8 @@
           "+48500785406"
         ],
         "iban": "PL22114940250099349842441014",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Nikola Szafrańska",
@@ -8011,7 +8044,8 @@
           "+48500382853"
         ],
         "iban": "PL29102832668680565047091162",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Martyna Olejniczak",
@@ -8022,7 +8056,8 @@
           "+48500853721"
         ],
         "iban": "PL28160144624660223886813134",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       },
       {
         "name": "Weronika Sadowska",
@@ -8033,7 +8068,8 @@
           "+48500303564"
         ],
         "iban": "PL95102187504574998597720441",
-        "role": "hostessa (umowa zlecenie)"
+        "role": "hostessa (umowa zlecenie)",
+        "address": null
       }
     ],
     "business_names_with_person": [

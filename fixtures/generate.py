@@ -2732,6 +2732,16 @@ def jpk_lp() -> list[tuple[int, JpkRow]]:
     return out
 
 
+def person_address(p: Party) -> dict | None:
+    """Home address of a natural person (pseudonymisation target), split for leak checks."""
+    if not p.addr1:
+        return None
+    street = re.sub(r"^(?:ul\.|al\.|pl\.|os\.)\s*", "", p.addr1)
+    m = re.match(r"(\d{2}-\d{3})\s+(.+)$", p.addr2)
+    return {"line1": p.addr1, "line2": p.addr2, "street": re.sub(r"\s+\d.*$", "", street),
+            "postal_code": m.group(1) if m else None, "city": m.group(2) if m else p.addr2}
+
+
 def build_ground_truth(ksef_index: list[dict]) -> dict:
     sales = [i for i in INV.values() if i.direction == S]
     purchases = [i for i in INV.values() if i.direction == PU]
@@ -2862,7 +2872,7 @@ def build_ground_truth(ksef_index: list[dict]) -> dict:
             "note": "dane osobowe (wymyślone), które NIE mogą trafić do modelu AI bez pseudonimizacji",
             "persons": [{"name": p.name, "phone": p.phone, "phone_formats": [phone_fmt(p.phone), phone_dash(p.phone),
                                                                                f"+48{p.phone}"],
-                         "iban": p.iban, "role": p.role} for p in persons],
+                         "iban": p.iban, "role": p.role, "address": person_address(p)} for p in persons],
             "business_names_with_person": [{"name": p.name, "person": p.person_name, "iban": p.iban}
                                            for p in P.values() if p.person_name],
             "sensitive_transactions": [t.ref for t in booked() if t.sensitive],

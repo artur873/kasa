@@ -23,7 +23,20 @@ not persons and stay readable):
    capitalized word that is neither a safe word nor a word of a company name;
 3. context: an honorific before the name ("Pan", "Pani", "P."), "BLIK" before it, or
    "tel." / "PESEL" right after it.
-Anything else ("Google Workspace", "Rogerson's Quay", "Scena Pro") is left as it is.
+Anything else ("Google Workspace", "Scena Pro") is left as it is. The window of a person is a
+first name with one or two surnames: a masked value (PESEL, IBAN, phone) is a boundary, a
+capitalised acronym (PESEL, NIP, FV, BLIK) is never a name, and a word followed by a number
+belongs to the address ("Jan Kowalski Kwiatowa 7" -> person + address, the same person code
+as "Jan Kowalski" alone).
+
+Addresses (phase 3 review): with a prefix ("ul.", "al.", "pl.", "os."); without one when the
+number carries a flat, "m."/"lok." or a postal code ("Kwiatowa 7/3", "Mazowiecka 12 m. 3
+Warszawa", "Kwiatowa 7, 05-500 Piaseczno"); a bare "Kwiatowa 7" only next to a person or after
+"zam."/"adres"; foreign ones by number and street word ("70 Sir John Rogerson's Quay", "500
+Market Street, Suite 900"). Invoice numbers ("FV 7/10/2026", "Rachunek 4/2026") and amounts
+are not addresses. A company's seat from structured FA(3) fields never reaches a model (the
+semantics of invoice lines sends only the line name), so only addresses inside free text -
+transfer titles, a person's bill, PDFs - are coded.
 """
 
 from __future__ import annotations
@@ -237,6 +250,34 @@ COMPANY_MARKERS = frozenset(
     "sp spolka zoo z o oo sa s a sj sk ska sc ltd llc inc gmbh ag bv nv uab sas sarl plc oy ab as se spa kg co".split()
 )
 
+# Nominative first names (folded): a street is never called "Anna"; a genitive form ("Jana",
+# "Marii") may open a street name ("Jana Pawła II", "Marii Konopnickiej").
+FIRST_NAME_NOMINATIVES = frozenset(fold(name) for name in FIRST_NAME_LIST)
+
+# Cities (folded) that may close an address after a flat number ("Mazowiecka 12 m. 3 Warszawa").
+CITY_WORDS = frozenset(fold(w) for w in """
+warszawa warszawie krakow krakowie gdansk gdansku gdynia gdyni sopot sopocie wroclaw wroclawiu lodz lodzi poznan
+poznaniu katowice katowicach szczecin szczecinie lublin lublinie bydgoszcz bydgoszczy bialystok bialymstoku torun
+toruniu kielce kielcach rzeszow rzeszowie olsztyn olsztynie opole opolu gliwice gliwicach zabrze bytom czestochowa
+radom sosnowiec zakopane piaseczno pruszkow legionowo otwock grodzisk zielonka marki zabki
+""".split())
+
+# Words before a street's main word that belong to the street ("Aleje Jerozolimskie", "Wybrzeże
+# Wyspiańskiego", "gen. Andersa", "św. Marcina"), folded, without dots.
+STREET_LEADERS = frozenset(fold(w) for w in """
+aleje aleja alei wybrzeze wybrzeza bulwar bulwaru rondo ronda skwer plac placu osiedle osiedla
+generala gen ksiedza ks swietego swietej sw marszalka marsz kardynala kard profesora prof doktora dr
+majora pulkownika plk krola krolowej hetmana biskupa papieza powstancow obroncow bohaterow
+""".split())
+
+# Acronyms written in capitals that are never a first name or a surname ("PESEL 44051401359 Marek Nowak":
+# the word before the name must not join it). Bank counterparties in capitals ("MAJA LEWANDOWICZ") stay names.
+ACRONYMS = frozenset("""
+pesel nip iban regon krs fv fa fvat vat pln eur usd gbp chf blik nr tel ul al pl os zus us pit cit km nus spv
+sp zoo sa sk ska sj ltd llc inc gmbh ag bv nv uab plc inv idc txt okr sfp ti mpp ksef jpk bic swift sepa atm pos
+ref id nrb rk kp kw wz pz cmr pkd
+""".split())
+
 _CAPITAL_COMPANY_RE = re.compile(
     r"\bsp\.?\s*z\s*o\.?\s*o\b|\bs\.?\s?k\.?\s?a\b|\bs\.\s?a\b\.?|\bs\.?a\.?$|\bp\.?s\.?a\b"
     r"|\b(?:gmbh|ltd|limited|inc|llc|uab|ag|plc|bv|nv|sarl|sas|spa|oy|ab|se|corp|corporation)\b",
@@ -360,7 +401,33 @@ _ADDRESS_RE = re.compile(
     r"\s+\d+[a-zA-Z]?(?:\s*/\s*\d+[a-zA-Z]?|\s+(?:m\.|lok\.)\s*\d+)?"
     r"(?:,?\s+\d{2}-\d{3}(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][\w\-]+)?)?"
 )
+_UP = "A-ZĄĆĘŁŃÓŚŹŻ"
+_LOW = "a-ząćęłńóśźżäöüß"
+# A street without a prefix: "Kwiatowa 7/3", "Mazowiecka 12 m. 3 Warszawa", "Kwiatowa 7, 05-500 Piaseczno".
+# Only the word right before the number is matched here; words that belong to the street before it
+# ("Jana Pawła II", "Aleje Jerozolimskie") are added by code. A strong match has a flat number, "m."/"lok."
+# or a postal code; a weak one (just "Kwiatowa 7") is an address only right after a person.
+_PLAIN_ADDRESS_RE = re.compile(
+    rf"(?<![\w.\-/])(?P<main>[{_UP}][{_LOW}]+(?:-[{_UP}][{_LOW}]+)?)(?:[ ]+(?P<roman>[IVX]{{1,4}}))?"
+    rf"[ ]+(?P<num>[1-9]\d{{0,3}}[a-zA-Z]?)(?![\w]|[.,\-]\d)"
+    rf"(?P<flat>[ ]?/[ ]?[1-9]\d{{0,2}}[a-zA-Z]?(?![\w/]|[.,\-]\d))?"
+    rf"(?P<lok>[ ]+(?:m\.|lok\.|lokal|mieszk\.)[ ]*[1-9]\d{{0,3}}[a-zA-Z]?(?![\w/]|[.,\-]\d))?"
+    rf"(?P<postal>(?:[ ]*,[ ]*|[ ]+|[ ]*\n[ ]*)\d{{2}}-\d{{3}}(?![\d\-])"
+    rf"(?P<city>[ ]+[{_UP}][{_LOW}]+(?:-[{_UP}][{_LOW}]+)?(?P<city2>[ ]+[{_UP}][{_LOW}]+)?)?)?"
+    rf"(?P<tail>,?[ ]+(?P<tailcity>[{_UP}][{_LOW}]+))?"
+)
+_STREET_SUFFIX = (r"Street|St\.|Avenue|Ave\.?|Road|Rd\.?|Quay|Parkway|Pkwy\.?|Boulevard|Blvd\.?|Lane|Drive|"
+                  r"Way|Place|Square|Court|Terrace|Highway|Straße|Strasse|Platz|Gasse|Allee|Weg")
+# A foreign street: number first ("70 Sir John Rogerson's Quay", "500 Market Street, Suite 900").
+_FOREIGN_ADDRESS_RE = re.compile(
+    rf"(?<![\w/.,\-])[1-9]\d{{0,4}}[A-Za-z]?(?:-\d{{1,4}})?[ \t]+(?:[A-Z][\w'’.\-]*[ \t]+){{0,4}}"
+    rf"(?:{_STREET_SUFFIX})(?![\w])"
+    rf"(?:,?[ \t]+(?:Suite|Ste\.?|Floor|Fl\.|Unit|Apt\.?|Apartment|Room)[ \t]*#?[\w\-]+)?"
+)
+# Words after which a bare "Kwiatowa 7" is an address.
+_ADDRESS_CONTEXT_RE = re.compile(r"(?:\bzam\.|\bzamieszka\w*|\bzameldowan\w*|\badres\w*)[\s:,-]*$", re.IGNORECASE)
 _WORD_RE = re.compile(r"[^\W\d_]+(?:-[^\W\d_]+)*")
+_MASK = "#"
 
 
 def _pesel_valid(digits: str) -> bool:
@@ -424,7 +491,87 @@ def _detect_regex(text: str) -> list[Detection]:
     return found
 
 
+# Words of transfer titles and documents that are followed by a number but are never a street
+# (only for addresses; persons use SAFE_WORDS).
+_NOT_STREETS = frozenset(fold(w) for w in """
+okres okresu termin terminu numer pozycja poz czesc etap transza transzy wplata wplaty saldo lista kurs kwota
+suma razem strona zalacznik aneks aneksu decyzja postanowienie sprawa sprawy sygn platnosc dokument dokumentu
+paczka tydzien tygodnia dzien dnia rok roku miesiac miesiaca kwartal kwartalu edycja edycji wersja wersji
+sezon sezonu runda rundy grupa sala sali stoisko stoiska pokoj pokoju lot lotu bilet biletu miejsce miejsca
+impreza imprezy klient klienta zadanie zadania punkt punktu wiersz wiersza kasa kasjer karta
+invoice order total subtotal amount qty item page
+""".split())
+
+
+def _street_word_ok(word: str, context: PseudonymContext) -> bool:
+    for part in fold(word).split("-"):
+        if part in _NOT_STREETS or part in COMPANY_MARKERS or part in context.company_tokens \
+                or part in FIRST_NAME_NOMINATIVES:
+            return False
+        # SAFE_WORDS hold city names; their adjectival forms are common streets ("Gdańska 5/3")
+        if part in SAFE_WORDS and not part.endswith(("ska", "cka")):
+            return False
+    return True
+
+
+def _street_start(text: str, start: int) -> int:
+    """Extend a street name backwards over its leading words ("Jana Pawła", "Aleje", "gen.")."""
+    for _ in range(2):
+        m = re.search(rf"(?:^|(?<=[\s(,;:]))([{_UP}{_LOW}][{_LOW}]*\.?)[ ]+$", text[:start])
+        if m is None:
+            break
+        word = m.group(1)
+        folded = fold(word.rstrip("."))
+        if folded in STREET_LEADERS or (word[0].isupper() and folded in FIRST_NAMES
+                                         and folded not in FIRST_NAME_NOMINATIVES and not word.endswith(".")):
+            start = m.start(1)
+            continue
+        break
+    return start
+
+
+def _detect_foreign_addresses(text: str) -> list[Detection]:
+    return [Detection("address", m.start(), m.end(), m.group(0), normalize_value("address", m.group(0)), "regex")
+            for m in _FOREIGN_ADDRESS_RE.finditer(text)]
+
+
+def _detect_plain_addresses(text: str, context: PseudonymContext, *, weak: bool) -> list[Detection]:
+    """Streets without a prefix; ``weak`` also returns bare "Name 7" (accepted by the caller only in context)."""
+    found = []
+    for m in _PLAIN_ADDRESS_RE.finditer(text):
+        if not _street_word_ok(m.group("main"), context):
+            continue
+        if not m.group("flat") and re.match(r"[ ]?/", text[m.end("num"):]):
+            continue                    # "Faktura 214/09/2026", "Rachunek 4/2026": a document number
+        strong = bool(m.group("flat") or m.group("lok") or m.group("postal"))
+        if not strong and (not weak or len(re.sub(r"\D", "", m.group("num"))) > 3):
+            continue
+        end = m.end()
+        if m.group("tail") and not ((m.group("flat") or m.group("lok")) and not m.group("postal")
+                                    and fold(m.group("tailcity")) in CITY_WORDS):
+            end = m.start("tail")       # a city closes an address only after a flat number
+        if m.group("city2") and end >= m.end("city2"):
+            second = fold(m.group("city2").strip())
+            if second in FIRST_NAME_NOMINATIVES or (second in SAFE_WORDS and second not in CITY_WORDS):
+                end = m.start("city2")  # "05-500 Piaseczno Jan Kowalski": the city is one word
+        start = _street_start(text, m.start("main"))
+        value = text[start:end]
+        found.append(Detection("address", start, end, value, normalize_value("address", value),
+                               "regex" if strong else "context"))
+    return found
+
+
+def _is_acronym(word: str) -> bool:
+    letters = word.replace("-", "")
+    if not (letters.isupper() and len(letters) >= 2):
+        return False
+    folded = fold(letters)
+    return folded in ACRONYMS or (len(folded) <= 4 and not any(ch in _VOWELS for ch in folded))
+
+
 def _word_class(word: str) -> str | None:
+    if _is_acronym(word):
+        return None
     letters = word.replace("-", "")
     if len(letters) >= 2 and letters.isupper():
         return "caps"
@@ -454,6 +601,10 @@ def _detect_persons(text: str, context: PseudonymContext, *, company_mode: bool 
             current = []
         else:
             if current and not joined:
+                runs.append(current)
+                current = []
+            elif current and _NUMBER_AFTER_RE.match(text, end) and _holds_name(current, context):
+                # "Jan Kowalski Kwiatowa 7": a word before a number is the street, not a third name
                 runs.append(current)
                 current = []
             current.append((start, end, word, cls))
@@ -510,6 +661,15 @@ def _detect_persons(text: str, context: PseudonymContext, *, company_mode: bool 
     return found
 
 
+_NUMBER_AFTER_RE = re.compile(r"[ ]*,?[ ]*(?:[1-9]\d{0,3}[a-zA-Z]?(?![\d.,:/\-]\d)(?!\d)|\d{2}-\d{3}(?!\d))")
+
+
+def _holds_name(run: list[tuple[int, int, str, str]], context: PseudonymContext) -> bool:
+    folded = [fold(w[2]) for w in run]
+    return any(f in FIRST_NAMES for f in folded) and any(
+        f not in FIRST_NAMES and not _is_safe(f, context) for f in folded)
+
+
 # Context that makes two capitalized words a person without a first name from the list.
 _HONORIFIC_RE = re.compile(r"(?:^|[\s(,;:/])(?:pan|pani|pana|panu|pania|panem|panie|p\.|sz\.\s?p\.|ob\.)\s*$",
                            re.IGNORECASE)
@@ -537,25 +697,40 @@ def _surname_matches(surname: str, token: str) -> bool:
 def detect(text: str, context: PseudonymContext | None = None) -> list[Detection]:
     """All personal values in ``text``, without overlaps, in text order."""
     context = context or PseudonymContext()
-    ordered = [*_detect_ibans(text), *_detect_regex(text)]
+    ordered = [*_detect_ibans(text), *_detect_regex(text), *_detect_foreign_addresses(text),
+               *_detect_plain_addresses(text, context, weak=False)]
     accepted: list[Detection] = []
     taken: list[tuple[int, int]] = []
 
     def free(d: Detection) -> bool:
         return all(d.end <= s or d.start >= e for s, e in taken)
 
+    def take(d: Detection) -> None:
+        accepted.append(Detection(d.kind, d.start, d.end, text[d.start:d.end], d.normalized, d.method))
+        taken.append((d.start, d.end))
+
+    def masked() -> str:
+        # a masked value is a boundary: no person window reaches across it
+        chars = list(text)
+        for s, e in taken:
+            chars[s:e] = _MASK * (e - s)
+        return "".join(chars)
+
     for d in ordered:
         if free(d):
-            accepted.append(d)
-            taken.append((d.start, d.end))
+            take(d)
     # persons last, on the text with the other values masked out
-    masked = list(text)
-    for s, e in taken:
-        masked[s:e] = " " * (e - s)
-    for d in _detect_persons("".join(masked), context):
-        if free(d):
-            accepted.append(Detection(d.kind, d.start, d.end, text[d.start:d.end], d.normalized, d.method))
-            taken.append((d.start, d.end))
+    persons = [d for d in _detect_persons(masked(), context) if free(d)]
+    for d in persons:
+        take(d)
+    # a bare "Kwiatowa 7" next to a person or after "zam." / "adres"
+    for d in _detect_plain_addresses(masked(), context, weak=True):
+        if not free(d):
+            continue
+        gap_ok = any(re.fullmatch(r"[ ,;]*", text[p.end:d.start]) for p in persons if p.end <= d.start) \
+            or any(re.fullmatch(r"[ ,;]*", text[d.end:p.start]) for p in persons if p.start >= d.end)
+        if gap_ok or _ADDRESS_CONTEXT_RE.search(text[max(0, d.start - 40):d.start]):
+            take(d)
     return sorted(accepted, key=lambda d: d.start)
 
 

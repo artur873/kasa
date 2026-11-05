@@ -368,7 +368,9 @@ def import_pdf(conn: psycopg.Connection, company: Any, payload: bytes, *, filena
         extraction = PdfExtraction.model_validate(data)
     except ValidationError as exc:
         extraction = None
-        problem = f"odpowiedź modelu niezgodna ze schematem: {exc.errors()[:3]}"
+        from kasa.core.semantics.gate import validation_summary  # local import: avoids a cycle
+
+        problem = f"odpowiedź modelu niezgodna ze schematem: {validation_summary(exc)}"
     lines_ok, line_details = lines_sum_check(extraction) if extraction else (False, {"reason": "schemat"})
     document_id = None
     outcome = PdfOutcome(filename, "document", needs_review=not lines_ok)

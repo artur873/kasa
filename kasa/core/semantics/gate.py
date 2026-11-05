@@ -346,7 +346,7 @@ def guarded_complete(conn: psycopg.Connection, company: Any, purpose: str, text:
     try:
         validated = schema.model_validate(answer)
     except ValidationError as exc:
-        problem = f"odpowiedź niezgodna ze schematem: {exc.errors()[:3]}"
+        problem = f"odpowiedź niezgodna ze schematem: {validation_summary(exc)}"
 
     # 5. log (6. no depseudonymization here)
     call_id = _log_call(conn, company_id, provider=provider, model=answered_by, prompt_version=answered_version,
@@ -356,6 +356,13 @@ def guarded_complete(conn: psycopg.Connection, company: Any, purpose: str, text:
     method = "code" if answer.get("_reader") == "regex" else "model"
     return SemanticsResult(validated, answer, answered_by, answered_version, getattr(provider, "name", "unknown"),
                            data_seen, call_id, tuple(hits), problem, method)
+
+
+def validation_summary(exc: ValidationError, limit: int = 3) -> list[dict[str, Any]]:
+    """Pydantic errors without the offending ``input`` (a fragment of the model's answer, which
+    may carry personal data after depseudonymization): only ``type`` and ``loc``."""
+    return [{"type": e["type"], "loc": list(e["loc"])}
+            for e in exc.errors(include_url=False, include_context=False, include_input=False)[:limit]]
 
 
 def terms_for(conn: psycopg.Connection, company: Any) -> list[Term]:

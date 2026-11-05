@@ -1,5 +1,6 @@
-"""Gate 3 - semantics and control sets (docs/FAZY.md): no model call contains a surname, IBAN, phone or
-e-mail from the fixtures; a sensitive word bypasses the model; the only way to a model is the gate.
+"""Gate 3 - semantics and control sets (docs/FAZY.md): no model call contains a surname, IBAN, phone,
+e-mail or home address of a person from the fixtures; a sensitive word bypasses the model; the only way
+to a model is the gate.
 
 The full October month goes through every channel with a provider that "leaves the machine"
 (it records everything it is given): PDFs from e-mails, transfer titles, invoice lines, PM sheet rows.
@@ -9,14 +10,39 @@ What it saw is checked three times: the provider's own record, ``llm_call_payloa
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from kasa.core import control_sets as cs
 from kasa.reference import ground_truth as reference
 from kasa.core import pseudonym
 from kasa.core.semantics.run import run_semantics
-from tests.semantics.helpers import CountingMock, RecordingLlm, ground_truth, leaks, load_month, odm_company
+from kasa.core.documents.pdf import pdf_text
+from kasa.core.sensitive import fold
+from tests.semantics.helpers import FIXTURES, CountingMock, RecordingLlm, ground_truth, load_month, odm_company
+from tests.semantics.helpers import leaks as personal_leaks
 from tests.semantics.test_gate import test_only_the_gate_calls_a_model as test_gate3_single_way_to_a_model  # noqa: F401
+
+
+def person_addresses(truth) -> list[dict]:
+    return [p["address"] for p in truth["pii"]["persons"] if p.get("address")]
+
+
+def leaks(text: str | None, truth) -> list[str]:
+    """Surnames, phones, e-mails, IBANs (tests.semantics.helpers) and the home addresses of persons:
+    the street name or the postal code of an address from ``pii`` must not be visible."""
+    found = personal_leaks(text, truth)
+    if not text:
+        return found
+    words = set(re.findall(r"[^\W\d_]+", fold(text)))
+    for address in person_addresses(truth):
+        street = [w for w in re.findall(r"[^\W\d_]+", fold(address["street"])) if len(w) >= 3]
+        if street and all(w in words for w in street):
+            found.append(f"street:{address['street']}")
+        if address.get("postal_code") and address["postal_code"] in text:
+            found.append(f"postal:{address['postal_code']}")
+    return found
 
 
 @pytest.fixture
@@ -53,6 +79,11 @@ def test_gate3_no_personal_data_reaches_a_model(conn, month):
     raw = conn.execute("SELECT string_agg(title_raw, ' ') FROM l1_bank_transaction WHERE company_id = %s",
                        (company.id,)).fetchone()[0]
     assert leaks(raw, truth)
+    # ... and so does the PDF of a person's bill (her home address), which the model saw coded
+    bill = pdf_text((FIXTURES / "email_pdfs" / "EM-05_rachunek_4_2026_zawadzki.pdf").read_bytes())
+    assert {f for f in leaks(bill, truth) if f.startswith(("street:", "postal:"))} == {"street:Lipowa",
+                                                                                      "postal:31-216"}
+    assert any("A-" in p and "RACHUNEK nr 4/2026" in p for p in llm.prompts)
     # every call is logged with a digest only; blocked attempts have no digest at all
     log = conn.execute(
         "SELECT status::text, count(*), count(input_hash) FROM llm_call_log WHERE company_id = %s GROUP BY 1",
