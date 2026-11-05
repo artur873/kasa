@@ -1,0 +1,37 @@
+{
+  "balances": [
+    {
+      "name": "Saldo zaksięgowane na koniec dnia",
+      "balance_amount": {
+        "currency": "PLN",
+        "amount": "138820.35"
+      },
+      "balance_type": "CLBD",
+      "reference_date": "2026-10-31",
+      "last_change_date_time": "2026-10-30T23:59:59+01:00",
+      "last_committed_transaction": "202610302699472862"
+    },
+    {
+      "name": "Saldo dostępne (po blokadach kartowych)",
+      "balance_amount": {
+        "currency": "PLN",
+        "amount": "137184.55"
+      },
+      "balance_type": "ITAV",
+      "reference_date": "2026-10-31",
+      "last_change_date_time": "2026-10-31T23:59:59+01:00",
+      "last_committed_transaction": null
+    },
+    {
+      "name": "Saldo otwarcia okresu (rozszerzenie fixture: odpowiednik OPBD z camt.053)",
+      "balance_amount": {
+        "currency": "PLN",
+        "amount": "142386.52"
+      },
+      "balance_type": "OPBD",
+      "reference_date": "2026-10-01",
+      "last_change_date_time": null,
+      "last_committed_transaction": null
+    }
+  ]
+}

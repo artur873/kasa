@@ -1,0 +1,233 @@
+{
+  "transactions": [
+    {
+      "entry_reference": "202610141002142076",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "5750.00"
+      },
+      "creditor": {
+        "name": "Scena Pro sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL69114818653705756556558562"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL67114020040000310277812346"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW MPP WYCHODZĄCY - VAT",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-14",
+      "value_date": "2026-10-14",
+      "transaction_date": "2026-10-14",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "1162.00"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "/VAT/5750,00/IDC/9516127975/INV/SP/2026/10/087/TXT/technika Gala ACME"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610232774376085",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "12880.00"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL67114020040000310277812346"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ACME Polska sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL19102602838510658312528272"
+      },
+      "debtor_agent": {
+        "bic_fi": "BPKOPLPW"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW MPP PRZYCHODZĄCY - VAT",
+        "code": "RCDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "14042.00"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "/VAT/12880,00/IDC/5342650778/INV/FV 3/10/2026/TXT/rozliczenie Gala ACME"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610266071538229",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "8877.00"
+      },
+      "creditor": {
+        "name": "Urząd Skarbowy - mikrorachunek podatkowy"
+      },
+      "creditor_account": {
+        "iban": "PL05101000712225342650778000"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL67114020040000310277812346"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW DO URZĘDU SKARBOWEGO",
+        "code": "ICDT",
+        "sub_code": "TAXS"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-26",
+      "value_date": "2026-10-26",
+      "transaction_date": "2026-10-26",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "5165.00"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "/TI/N5342650778/OKR/26M09/SFP/VAT7/TXT/VAT za 09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610277768618204",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "2300.00"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL67114020040000310277812346"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ACME Polska sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL19102602838510658312528272"
+      },
+      "debtor_agent": {
+        "bic_fi": "BPKOPLPW"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW MPP PRZYCHODZĄCY - VAT",
+        "code": "RCDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-27",
+      "value_date": "2026-10-27",
+      "transaction_date": "2026-10-27",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "7465.00"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "/VAT/2300,00/IDC/5342650778/INV/FV 7/10/2026/TXT/atrakcje Gala ACME"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610286656245067",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "3000.00"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL67114020040000310277812346"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZEKSIĘGOWANIE Z RACHUNKU VAT",
+        "code": "ICDT",
+        "sub_code": "BOOK"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-28",
+      "value_date": "2026-10-28",
+      "transaction_date": "2026-10-28",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "4465.00"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Przeksiegowanie z rachunku VAT - postanowienie NUS 1471-SPV.4012.37.2026 z 21.10.2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    }
+  ],
+  "continuation_key": null
+}

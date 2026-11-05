@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-10-12T07:44:47Z</DataWytworzeniaFa>
+    <SystemInfo>Fakturownia</SystemInfo>
+  </Naglowek>
+  <Podmiot1>
+    <PrefiksPodatnika>PL</PrefiksPodatnika>
+    <DaneIdentyfikacyjne>
+      <NIP>5342650778</NIP>
+      <Nazwa>ODM Partners sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Chmielna 73 lok. 4</AdresL1>
+      <AdresL2>00-801 Warszawa</AdresL2>
+    </Adres>
+    <DaneKontaktowe>
+      <Email>finanse@odmpartners.test</Email>
+    </DaneKontaktowe>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>5213775822</NIP>
+      <Nazwa>ACME Polska sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Prosta 68</AdresL1>
+      <AdresL2>00-838 Warszawa</AdresL2>
+    </Adres>
+    <DaneKontaktowe>
+      <Email>ksiegowosc@acmepolska.test</Email>
+    </DaneKontaktowe>
+    <JST>2</JST>
+    <GV>2</GV>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-10-12</P_1>
+    <P_1M>Warszawa</P_1M>
+    <P_2>FV 3/10/2026</P_2>
+    <P_6>2026-10-10</P_6>
+    <P_13_1>56000.00</P_13_1>
+    <P_14_1>12880.00</P_14_1>
+    <P_15>68880.00</P_15>
+    <Adnotacje>
+      <P_16>2</P_16>
+      <P_17>2</P_17>
+      <P_18>2</P_18>
+      <P_18A>2</P_18A>
+      <Zwolnienie>
+        <P_19N>1</P_19N>
+      </Zwolnienie>
+      <NoweSrodkiTransportu>
+        <P_22N>1</P_22N>
+      </NoweSrodkiTransportu>
+      <P_23>2</P_23>
+      <PMarzy>
+        <P_PMarzyN>1</P_PMarzyN>
+      </PMarzy>
+    </Adnotacje>
+    <RodzajFaktury>ROZ</RodzajFaktury>
+    <FakturaZaliczkowa>
+      <NrKSeFFaZaliczkowej>5342650778-20261002-BE973AA732BF-1B</NrKSeFFaZaliczkowej>
+    </FakturaZaliczkowa>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Organizacja Gali ACME 2026 (Kraków, 08-10.10.2026) - usługa kompleksowa wg umowy 14/2026</P_7>
+      <P_8A>usł.</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>80000.00</P_9A>
+      <P_11>80000.00</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <Platnosc>
+      <TerminPlatnosci>
+        <Termin>2026-10-26</Termin>
+      </TerminPlatnosci>
+      <FormaPlatnosci>6</FormaPlatnosci>
+      <RachunekBankowy>
+        <NrRB>40114020040000350277812345</NrRB>
+        <NazwaBanku>mBank S.A.</NazwaBanku>
+      </RachunekBankowy>
+    </Platnosc>
+  </Fa>
+</Faktura>

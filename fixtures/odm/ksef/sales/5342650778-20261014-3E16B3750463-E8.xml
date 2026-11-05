@@ -1,0 +1,100 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-10-14T09:24:30Z</DataWytworzeniaFa>
+    <SystemInfo>Fakturownia</SystemInfo>
+  </Naglowek>
+  <Podmiot1>
+    <PrefiksPodatnika>PL</PrefiksPodatnika>
+    <DaneIdentyfikacyjne>
+      <NIP>5342650778</NIP>
+      <Nazwa>ODM Partners sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Chmielna 73 lok. 4</AdresL1>
+      <AdresL2>00-801 Warszawa</AdresL2>
+    </Adres>
+    <DaneKontaktowe>
+      <Email>finanse@odmpartners.test</Email>
+    </DaneKontaktowe>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>5867422344</NIP>
+      <Nazwa>Nordis Retail sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Świętojańska 41</AdresL1>
+      <AdresL2>81-391 Gdynia</AdresL2>
+    </Adres>
+    <DaneKontaktowe>
+      <Email>faktury@nordis.test</Email>
+    </DaneKontaktowe>
+    <JST>2</JST>
+    <GV>2</GV>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-10-14</P_1>
+    <P_1M>Warszawa</P_1M>
+    <P_2>KOR 1/10/2026</P_2>
+    <P_13_1>-1626.02</P_13_1>
+    <P_14_1>-373.98</P_14_1>
+    <P_15>-2000.00</P_15>
+    <Adnotacje>
+      <P_16>2</P_16>
+      <P_17>2</P_17>
+      <P_18>2</P_18>
+      <P_18A>2</P_18A>
+      <Zwolnienie>
+        <P_19N>1</P_19N>
+      </Zwolnienie>
+      <NoweSrodkiTransportu>
+        <P_22N>1</P_22N>
+      </NoweSrodkiTransportu>
+      <P_23>2</P_23>
+      <PMarzy>
+        <P_PMarzyN>1</P_PMarzyN>
+      </PMarzy>
+    </Adnotacje>
+    <RodzajFaktury>KOR</RodzajFaktury>
+    <PrzyczynaKorekty>Rabat za opóźniony montaż strefy wejścia - Roadshow Nordis Gdańsk</PrzyczynaKorekty>
+    <TypKorekty>2</TypKorekty>
+    <DaneFaKorygowanej>
+      <DataWystFaKorygowanej>2026-10-05</DataWystFaKorygowanej>
+      <NrFaKorygowanej>FV 2/10/2026</NrFaKorygowanej>
+      <NrKSeF>1</NrKSeF>
+      <NrKSeFFaKorygowanej>5342650778-20261005-F3887A61DE66-1E</NrKSeFFaKorygowanej>
+    </DaneFaKorygowanej>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Materiały promocyjne i branding strefy wejścia - Roadshow Nordis Gdańsk 03.10.2026</P_7>
+      <P_8A>kpl.</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>8130.08</P_9A>
+      <P_11>8130.08</P_11>
+      <P_12>23</P_12>
+      <StanPrzed>1</StanPrzed>
+    </FaWiersz>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Materiały promocyjne i branding strefy wejścia - Roadshow Nordis Gdańsk 03.10.2026</P_7>
+      <P_8A>kpl.</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>6504.06</P_9A>
+      <P_11>6504.06</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <Platnosc>
+      <FormaPlatnosci>6</FormaPlatnosci>
+      <RachunekBankowy>
+        <NrRB>80116022020000000412906733</NrRB>
+        <NazwaBanku>Bank Millennium S.A.</NazwaBanku>
+      </RachunekBankowy>
+    </Platnosc>
+  </Fa>
+</Faktura>

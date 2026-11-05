@@ -1,0 +1,80 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-10-26T11:35:52Z</DataWytworzeniaFa>
+    <SystemInfo>Fakturownia</SystemInfo>
+  </Naglowek>
+  <Podmiot1>
+    <PrefiksPodatnika>PL</PrefiksPodatnika>
+    <DaneIdentyfikacyjne>
+      <NIP>5342650778</NIP>
+      <Nazwa>ODM Partners sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Chmielna 73 lok. 4</AdresL1>
+      <AdresL2>00-801 Warszawa</AdresL2>
+    </Adres>
+    <DaneKontaktowe>
+      <Email>finanse@odmpartners.test</Email>
+    </DaneKontaktowe>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>7795524621</NIP>
+      <Nazwa>Orbita Media sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Garbary 48</AdresL1>
+      <AdresL2>61-758 Poznań</AdresL2>
+    </Adres>
+    <JST>2</JST>
+    <GV>2</GV>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-10-26</P_1>
+    <P_1M>Warszawa</P_1M>
+    <P_2>FV 9/10/2026</P_2>
+    <P_6>2026-10-24</P_6>
+    <P_13_1>3000.00</P_13_1>
+    <P_14_1>690.00</P_14_1>
+    <P_15>3690.00</P_15>
+    <Adnotacje>
+      <P_16>2</P_16>
+      <P_17>2</P_17>
+      <P_18>2</P_18>
+      <P_18A>2</P_18A>
+      <Zwolnienie>
+        <P_19N>1</P_19N>
+      </Zwolnienie>
+      <NoweSrodkiTransportu>
+        <P_22N>1</P_22N>
+      </NoweSrodkiTransportu>
+      <P_23>2</P_23>
+      <PMarzy>
+        <P_PMarzyN>1</P_PMarzyN>
+      </PMarzy>
+    </Adnotacje>
+    <RodzajFaktury>VAT</RodzajFaktury>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Wynajem fotobudki z obsługą - event firmowy, 24.10.2026</P_7>
+      <P_8A>usł.</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>3000.00</P_9A>
+      <P_11>3000.00</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <Platnosc>
+      <FormaPlatnosci>6</FormaPlatnosci>
+      <RachunekBankowy>
+        <NrRB>40114020040000350277812345</NrRB>
+        <NazwaBanku>mBank S.A.</NazwaBanku>
+      </RachunekBankowy>
+    </Platnosc>
+  </Fa>
+</Faktura>

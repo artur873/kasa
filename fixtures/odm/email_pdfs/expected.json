@@ -1,0 +1,371 @@
+{
+  "description": "Oczekiwana ekstrakcja z PDF-ów (to, co model ma odczytać; pozycje sumują się do kwoty).",
+  "documents": {
+    "EM-01": {
+      "file": "EM-01_google_workspace_5384029117.pdf",
+      "doc_kind": "invoice",
+      "seller": {
+        "name": "Google Cloud EMEA Limited",
+        "tax_id": "IE6392017LH",
+        "country": "IE"
+      },
+      "buyer": {
+        "name": "ODM Partners sp. z o.o.",
+        "tax_id": "PL5342650778"
+      },
+      "number": "5384029117",
+      "issue_date": "2026-10-14",
+      "sale_date": null,
+      "period_from": "2026-09-14",
+      "period_to": "2026-10-13",
+      "currency": "EUR",
+      "lines": [
+        {
+          "name": "Google Workspace Business Standard (Flexible Plan)",
+          "quantity": "9",
+          "unit": "user",
+          "unit_price": "11.00",
+          "vat_rate": "np II",
+          "net": "99.00",
+          "vat": "0.00",
+          "gross": "99.00"
+        }
+      ],
+      "totals": {
+        "net": "99.00",
+        "vat": "0.00",
+        "gross": "99.00"
+      },
+      "lines_sum_equals_total": true,
+      "vat_mode": "reverse",
+      "payment": {
+        "method": "card",
+        "card_last4": "4417",
+        "status": "paid"
+      },
+      "pln": {
+        "nbp_rate": "4.2512",
+        "nbp_table_date": "2026-10-13",
+        "gross_pln": "420.87"
+      },
+      "same_as_ksef": null,
+      "expected_bank_match": "202610166224040945",
+      "expected_event": "UNASSIGNED",
+      "final_allocation": [
+        {
+          "event": "UNASSIGNED",
+          "event_name": "UNASSIGNED",
+          "share": "1.000000",
+          "share_exact": "1",
+          "amount_pln": "420.87"
+        }
+      ],
+      "note": "Faktura w EUR, płatność kartą w PLN 2 dni później - różnica kursowa wobec NBP."
+    },
+    "EM-02": {
+      "file": "EM-02_anthropic_INV-2610-0437.pdf",
+      "doc_kind": "invoice",
+      "seller": {
+        "name": "Anthropic, PBC",
+        "tax_id": "EU372041857",
+        "country": "US"
+      },
+      "buyer": {
+        "name": "ODM Partners sp. z o.o.",
+        "tax_id": "PL5342650778"
+      },
+      "number": "INV-2610-0437",
+      "issue_date": "2026-10-01",
+      "sale_date": null,
+      "period_from": "2026-10-01",
+      "period_to": "2026-10-31",
+      "currency": "USD",
+      "lines": [
+        {
+          "name": "Claude Team plan - standard seat (Oct 1 - Oct 31, 2026)",
+          "quantity": "5",
+          "unit": "seat",
+          "unit_price": "30.00",
+          "vat_rate": "np II",
+          "net": "150.00",
+          "vat": "0.00",
+          "gross": "150.00"
+        }
+      ],
+      "totals": {
+        "net": "150.00",
+        "vat": "0.00",
+        "gross": "150.00"
+      },
+      "lines_sum_equals_total": true,
+      "vat_mode": "reverse",
+      "payment": {
+        "method": "card",
+        "card_last4": "4417",
+        "status": "paid"
+      },
+      "pln": {
+        "nbp_rate": "3.8420",
+        "nbp_table_date": "2026-09-30",
+        "gross_pln": "576.30"
+      },
+      "same_as_ksef": null,
+      "expected_bank_match": "202610021670611934",
+      "expected_event": "UNASSIGNED",
+      "final_allocation": [
+        {
+          "event": "UNASSIGNED",
+          "event_name": "UNASSIGNED",
+          "share": "1.000000",
+          "share_exact": "1",
+          "amount_pln": "576.30"
+        }
+      ],
+      "note": ""
+    },
+    "EM-03": {
+      "file": "EM-03_notion_8F2C41A0-0007.pdf",
+      "doc_kind": "invoice",
+      "seller": {
+        "name": "Notion Labs, Inc.",
+        "tax_id": "EU372058163",
+        "country": "US"
+      },
+      "buyer": {
+        "name": "ODM Partners sp. z o.o.",
+        "tax_id": "PL5342650778"
+      },
+      "number": "8F2C41A0-0007",
+      "issue_date": "2026-10-21",
+      "sale_date": null,
+      "period_from": "2026-10-21",
+      "period_to": "2026-11-20",
+      "currency": "USD",
+      "lines": [
+        {
+          "name": "Notion Plus plan (monthly)",
+          "quantity": "6",
+          "unit": "member",
+          "unit_price": "12.00",
+          "vat_rate": "np II",
+          "net": "72.00",
+          "vat": "0.00",
+          "gross": "72.00"
+        }
+      ],
+      "totals": {
+        "net": "72.00",
+        "vat": "0.00",
+        "gross": "72.00"
+      },
+      "lines_sum_equals_total": true,
+      "vat_mode": "reverse",
+      "payment": {
+        "method": "card",
+        "card_last4": "4417",
+        "status": "paid"
+      },
+      "pln": {
+        "nbp_rate": "3.8275",
+        "nbp_table_date": "2026-10-20",
+        "gross_pln": "275.58"
+      },
+      "same_as_ksef": null,
+      "expected_bank_match": "202610221759883865",
+      "expected_event": "UNASSIGNED",
+      "final_allocation": [
+        {
+          "event": "UNASSIGNED",
+          "event_name": "UNASSIGNED",
+          "share": "1.000000",
+          "share_exact": "1",
+          "amount_pln": "275.58"
+        }
+      ],
+      "note": ""
+    },
+    "EM-04": {
+      "file": "EM-04_paragon_petrova_2026-10-24.pdf",
+      "doc_kind": "receipt",
+      "seller": {
+        "name": "PETROVA S.A. Stacja Paliw nr 214",
+        "tax_id": "7286734770",
+        "country": "PL"
+      },
+      "buyer": {
+        "name": "ODM Partners sp. z o.o.",
+        "tax_id": null
+      },
+      "number": "028417",
+      "issue_date": "2026-10-24",
+      "sale_date": null,
+      "period_from": null,
+      "period_to": null,
+      "currency": "PLN",
+      "lines": [
+        {
+          "name": "ON EFECTA DIESEL",
+          "quantity": "58.12",
+          "unit": "l",
+          "unit_price": "6.49",
+          "vat_rate": "23",
+          "net": "306.67",
+          "vat": "70.53",
+          "gross": "377.20"
+        }
+      ],
+      "totals": {
+        "net": "306.67",
+        "vat": "70.53",
+        "gross": "377.20"
+      },
+      "lines_sum_equals_total": true,
+      "vat_mode": "included",
+      "payment": {
+        "method": "card",
+        "card_last4": "4417",
+        "status": "paid"
+      },
+      "pln": null,
+      "same_as_ksef": null,
+      "expected_bank_match": "202610264228948107",
+      "expected_event": "queue",
+      "final_allocation": [
+        {
+          "event": "EV-04",
+          "event_name": "Roadshow Nordis Łódź",
+          "share": "1.000000",
+          "share_exact": "1",
+          "amount_pln": "377.20"
+        }
+      ],
+      "note": "Paragon bez NIP nabywcy: VAT nieodliczalny, kosztem jest brutto."
+    },
+    "EM-05": {
+      "file": "EM-05_rachunek_4_2026_zawadzki.pdf",
+      "doc_kind": "bill",
+      "seller": {
+        "name": "Marek Zawadzki",
+        "tax_id": null,
+        "country": "PL"
+      },
+      "buyer": {
+        "name": "ODM Partners sp. z o.o.",
+        "tax_id": "5342650778"
+      },
+      "number": "4/2026",
+      "issue_date": "2026-10-10",
+      "sale_date": "2026-10-09",
+      "period_from": null,
+      "period_to": null,
+      "currency": "PLN",
+      "lines": [
+        {
+          "name": "Prowadzenie konferansjerki podczas Gali ACME 2026 (09.10.2026, Kraków)",
+          "quantity": "1",
+          "unit": "usł.",
+          "unit_price": "1800.00",
+          "vat_rate": "zw",
+          "net": "1800.00",
+          "vat": "0.00",
+          "gross": "1800.00"
+        }
+      ],
+      "totals": {
+        "net": "1800.00",
+        "vat": "0.00",
+        "gross": "1800.00"
+      },
+      "lines_sum_equals_total": true,
+      "vat_mode": "none",
+      "payment": {
+        "method": "transfer",
+        "bank_account": "PL28249241152270907285984411",
+        "due_date": "2026-10-17",
+        "status": "unpaid"
+      },
+      "pln": null,
+      "same_as_ksef": null,
+      "expected_bank_match": "202610160785476080",
+      "expected_event": "EV-01",
+      "final_allocation": [
+        {
+          "event": "EV-01",
+          "event_name": "Gala ACME 2026",
+          "share": "1.000000",
+          "share_exact": "1",
+          "amount_pln": "1800.00"
+        }
+      ],
+      "note": "Rachunek osoby fizycznej (działalność nierejestrowana, bez VAT). Ten sam koszt co wiersz PM R08."
+    },
+    "EM-06": {
+      "file": "EM-06_hotel_wawel_grand_FV-2026-10-0412.pdf",
+      "doc_kind": "invoice",
+      "seller": {
+        "name": "Hotel Wawel Grand sp. z o.o.",
+        "tax_id": "6768253927",
+        "country": "PL"
+      },
+      "buyer": {
+        "name": "ODM Partners sp. z o.o.",
+        "tax_id": "5342650778"
+      },
+      "number": "FV/2026/10/0412",
+      "issue_date": "2026-10-10",
+      "sale_date": null,
+      "period_from": "2026-10-08",
+      "period_to": "2026-10-10",
+      "currency": "PLN",
+      "lines": [
+        {
+          "name": "Nocleg w pokoju dwuosobowym, 14 pokoi (08-10.10.2026)",
+          "quantity": "28",
+          "unit": "doba",
+          "unit_price": "420.00",
+          "vat_rate": "8",
+          "net": "11760.00",
+          "vat": "940.80",
+          "gross": "12700.80"
+        },
+        {
+          "name": "Parking hotelowy, 14 miejsc (08-10.10.2026)",
+          "quantity": "28",
+          "unit": "doba",
+          "unit_price": "40.00",
+          "vat_rate": "23",
+          "net": "1120.00",
+          "vat": "257.60",
+          "gross": "1377.60"
+        }
+      ],
+      "totals": {
+        "net": "12880.00",
+        "vat": "1198.40",
+        "gross": "14078.40"
+      },
+      "lines_sum_equals_total": true,
+      "vat_mode": "standard",
+      "payment": {
+        "method": "transfer",
+        "bank_account": "PL58102100283340938176291318",
+        "due_date": "2026-10-24",
+        "status": "unpaid"
+      },
+      "pln": null,
+      "same_as_ksef": "6768253927-20261010-035D037CD68A-E7",
+      "expected_bank_match": "ML2610224165347",
+      "expected_event": "queue",
+      "final_allocation": [
+        {
+          "event": "EV-01",
+          "event_name": "Gala ACME 2026",
+          "share": "1.000000",
+          "share_exact": "1",
+          "amount_pln": "12880.00"
+        }
+      ],
+      "note": "TA SAMA faktura co w KSeF (bez numeru KSeF na wydruku): deduplikacja po NIP + numer + data + kwota."
+    }
+  }
+}

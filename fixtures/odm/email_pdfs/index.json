@@ -1,0 +1,107 @@
+{
+  "source": "mock archiwum maili (projekt glos)",
+  "messages": [
+    {
+      "id": "EM-01",
+      "mailbox": "glos",
+      "message_id": "<0f725c59670fb4d8.em-01@mail.test>",
+      "from": "Google Payments <payments-noreply@google.com>",
+      "to": "finanse@odmpartners.test",
+      "date": "2026-10-14T05:41:12Z",
+      "subject": "Google Workspace: faktura za odmpartners.test jest dostępna",
+      "attachments": [
+        {
+          "filename": "EM-01_google_workspace_5384029117.pdf",
+          "content_type": "application/pdf",
+          "size": 83196,
+          "sha256": "3cc51de2855d6e8391cb35059d2534aeabdd71816ca726f29f8170c53392e728"
+        }
+      ]
+    },
+    {
+      "id": "EM-02",
+      "mailbox": "glos",
+      "message_id": "<5a5fe3158cbc4caf.em-02@mail.test>",
+      "from": "Anthropic, PBC <invoice+statements@mail.anthropic.com>",
+      "to": "finanse@odmpartners.test",
+      "date": "2026-10-01T07:02:55Z",
+      "subject": "Your receipt from Anthropic, PBC #2481-7730",
+      "attachments": [
+        {
+          "filename": "EM-02_anthropic_INV-2610-0437.pdf",
+          "content_type": "application/pdf",
+          "size": 82329,
+          "sha256": "e914ccca3c604037788216282ea98416bfa3734b30ece932a5671b1a83da2242"
+        }
+      ]
+    },
+    {
+      "id": "EM-03",
+      "mailbox": "glos",
+      "message_id": "<aec85140a9dd3d6e.em-03@mail.test>",
+      "from": "Notion <team@makenotion.com>",
+      "to": "finanse@odmpartners.test",
+      "date": "2026-10-21T16:14:03Z",
+      "subject": "Your Notion receipt [#8F2C41A0-0007]",
+      "attachments": [
+        {
+          "filename": "EM-03_notion_8F2C41A0-0007.pdf",
+          "content_type": "application/pdf",
+          "size": 82289,
+          "sha256": "7ab34049bf52f0b846deb95375ba8b96bddf74176fb0d414e65377bb396287d9"
+        }
+      ]
+    },
+    {
+      "id": "EM-04",
+      "mailbox": "glos",
+      "message_id": "<a3a7313902f03e8d.em-04@mail.test>",
+      "from": "Anna Mazur <anna.mazur@odmpartners.test>",
+      "to": "finanse@odmpartners.test",
+      "date": "2026-10-25T09:05:40Z",
+      "subject": "paragon paliwo Łódź (roadshow)",
+      "attachments": [
+        {
+          "filename": "EM-04_paragon_petrova_2026-10-24.pdf",
+          "content_type": "application/pdf",
+          "size": 81842,
+          "sha256": "dc2b7fab5d9c9713b5037275ef68ca4b6f95aed8aad9d341ae541d051dd1cf38"
+        }
+      ]
+    },
+    {
+      "id": "EM-05",
+      "mailbox": "glos",
+      "message_id": "<c414d2306c6627fd.em-05@mail.test>",
+      "from": "Marek Zawadzki <marek.zawadzki@poczta.test>",
+      "to": "finanse@odmpartners.test",
+      "date": "2026-10-10T19:33:09Z",
+      "subject": "Rachunek za prowadzenie Gali",
+      "attachments": [
+        {
+          "filename": "EM-05_rachunek_4_2026_zawadzki.pdf",
+          "content_type": "application/pdf",
+          "size": 82703,
+          "sha256": "c950fe56dd29f660abaa7004ff2db278ec35d7965bafd79c42bdc01c952d61d6"
+        }
+      ]
+    },
+    {
+      "id": "EM-06",
+      "mailbox": "glos",
+      "message_id": "<99c3a5833a1b0575.em-06@mail.test>",
+      "from": "Hotel Wawel Grand <recepcja@wawelgrand.test>",
+      "to": "finanse@odmpartners.test",
+      "date": "2026-10-10T09:47:21Z",
+      "subject": "Faktura FV/2026/10/0412 - pobyt 08-10.10.2026",
+      "attachments": [
+        {
+          "filename": "EM-06_hotel_wawel_grand_FV-2026-10-0412.pdf",
+          "content_type": "application/pdf",
+          "size": 83978,
+          "sha256": "b69774522a8ce7d6d461e9273efd454194c3bf702219bc5a98942615cb1d099c"
+        }
+      ]
+    }
+  ]
+}

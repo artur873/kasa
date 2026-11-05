@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-10-16T11:52:09Z</DataWytworzeniaFa>
+    <SystemInfo>Fakturownia</SystemInfo>
+  </Naglowek>
+  <Podmiot1>
+    <PrefiksPodatnika>PL</PrefiksPodatnika>
+    <DaneIdentyfikacyjne>
+      <NIP>1138672933</NIP>
+      <Nazwa>Bufet Mazowsze sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Ząbkowska 27</AdresL1>
+      <AdresL2>03-736 Warszawa</AdresL2>
+    </Adres>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>5342650778</NIP>
+      <Nazwa>ODM Partners sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Chmielna 73 lok. 4</AdresL1>
+      <AdresL2>00-801 Warszawa</AdresL2>
+    </Adres>
+    <DaneKontaktowe>
+      <Email>finanse@odmpartners.test</Email>
+    </DaneKontaktowe>
+    <JST>2</JST>
+    <GV>2</GV>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-10-16</P_1>
+    <P_1M>Warszawa</P_1M>
+    <P_2>BM/1016/2026</P_2>
+    <P_13_2>20400.00</P_13_2>
+    <P_14_2>1632.00</P_14_2>
+    <P_15>22032.00</P_15>
+    <Adnotacje>
+      <P_16>2</P_16>
+      <P_17>2</P_17>
+      <P_18>2</P_18>
+      <P_18A>2</P_18A>
+      <Zwolnienie>
+        <P_19N>1</P_19N>
+      </Zwolnienie>
+      <NoweSrodkiTransportu>
+        <P_22N>1</P_22N>
+      </NoweSrodkiTransportu>
+      <P_23>2</P_23>
+      <PMarzy>
+        <P_PMarzyN>1</P_PMarzyN>
+      </PMarzy>
+    </Adnotacje>
+    <RodzajFaktury>VAT</RodzajFaktury>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Catering konferencyjny - Helios Partner Summit 2026 (15-16.10.2026)</P_7>
+      <P_8A>os.</P_8A>
+      <P_8B>240</P_8B>
+      <P_9A>85.00</P_9A>
+      <P_11>20400.00</P_11>
+      <P_12>8</P_12>
+    </FaWiersz>
+    <Platnosc>
+      <TerminPlatnosci>
+        <Termin>2026-11-15</Termin>
+      </TerminPlatnosci>
+      <FormaPlatnosci>6</FormaPlatnosci>
+      <RachunekBankowy>
+        <NrRB>10105655644802365499569458</NrRB>
+        <NazwaBanku>ING Bank Śląski S.A.</NazwaBanku>
+      </RachunekBankowy>
+    </Platnosc>
+  </Fa>
+</Faktura>

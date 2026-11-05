@@ -1,0 +1,2973 @@
+{
+  "transactions": [
+    {
+      "entry_reference": "202610017411739420",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "29520.00"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ACME Polska sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL19102602838510658312528272"
+      },
+      "debtor_agent": {
+        "bic_fi": "BPKOPLPW"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW PRZYCHODZĄCY",
+        "code": "RCDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-01",
+      "value_date": "2026-10-01",
+      "transaction_date": "2026-10-01",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "171906.52"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Zaliczka 30% - Gala ACME 2026 - umowa 14/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610021670611934",
+      "merchant_category_code": "5734",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "586.35"
+      },
+      "creditor": {
+        "name": "ANTHROPIC* CLAUDE TEAM"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "TRANSAKCJA KARTĄ - WALUTA OBCA",
+        "code": "CCRD",
+        "sub_code": "POSD"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-02",
+      "value_date": "2026-10-02",
+      "transaction_date": "2026-10-01",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "171320.17"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "ANTHROPIC* CLAUDE TEAM SAN FRANCISCO US",
+        "Kwota oryg. 150,00 USD, kurs 3,9090",
+        "Karta 5375 **** **** 4417"
+      ],
+      "exchange_rate": {
+        "unit_currency": "USD",
+        "exchange_rate": "3.9090",
+        "rate_type": "SALE",
+        "contract_identification": null,
+        "instructed_amount": {
+          "currency": "USD",
+          "amount": "150.00"
+        }
+      },
+      "note": null
+    },
+    {
+      "entry_reference": "202610053264356611",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "400.00"
+      },
+      "creditor": {
+        "name": "MAJA LEWANDOWICZ"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-05",
+      "value_date": "2026-10-05",
+      "transaction_date": "2026-10-05",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "170920.17"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Nordis Gdansk hostessa 03.10",
+        "Przelew na telefon BLIK +48 500 085 853"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610055288071238",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "400.00"
+      },
+      "creditor": {
+        "name": "HANNA DROZDOWSKA"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-05",
+      "value_date": "2026-10-05",
+      "transaction_date": "2026-10-05",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "170520.17"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Nordis Gdansk hostessa 03.10",
+        "Przelew na telefon BLIK +48 500 667 062"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610065634798198",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "20000.00"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL80116022020000000412906733"
+      },
+      "creditor_agent": {
+        "bic_fi": "BIGBPLPW"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WŁASNY WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "BOOK"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-06",
+      "value_date": "2026-10-06",
+      "transaction_date": "2026-10-06",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "150520.17"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Przelew wlasny - zasilenie rachunku Millennium"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610076358867832",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "5000.00"
+      },
+      "creditor": {
+        "name": "Dwór Kalina Event sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL90102304915636282657059504"
+      },
+      "creditor_agent": {
+        "bic_fi": "BPKOPLPW"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-07",
+      "value_date": "2026-10-07",
+      "transaction_date": "2026-10-07",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "145520.17"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Zaliczka na poczet faktury - rezerwacja Dwor Kalina, termin 14.11.2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610086622571743",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "2952.00"
+      },
+      "creditor": {
+        "name": "Drukarnia Format sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL53102701070467152028658031"
+      },
+      "creditor_agent": {
+        "bic_fi": "BPKOPLPW"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-08",
+      "value_date": "2026-10-08",
+      "transaction_date": "2026-10-08",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "142568.17"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Faktura 214/09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610092920619715",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "9840.00"
+      },
+      "creditor": {
+        "name": "Biuro Centrum sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL86124246749500602525346826"
+      },
+      "creditor_agent": {
+        "bic_fi": "PKOPPLPW"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-09",
+      "value_date": "2026-10-09",
+      "transaction_date": "2026-10-09",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "132728.17"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Czynsz pazdziernik 2026 FV 7/10/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610097692101583",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "7240.18"
+      },
+      "creditor": {
+        "name": "Anna Mazur"
+      },
+      "creditor_account": {
+        "iban": "PL10114958040940956375786126"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW - WYNAGRODZENIE",
+        "code": "ICDT",
+        "sub_code": "SALA"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-09",
+      "value_date": "2026-10-09",
+      "transaction_date": "2026-10-09",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "125487.99"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Wynagrodzenie 09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610099337938270",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "6512.40"
+      },
+      "creditor": {
+        "name": "Bartłomiej Sowiński"
+      },
+      "creditor_account": {
+        "iban": "PL08102021116685345877523743"
+      },
+      "creditor_agent": {
+        "bic_fi": "BPKOPLPW"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW - WYNAGRODZENIE",
+        "code": "ICDT",
+        "sub_code": "SALA"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-09",
+      "value_date": "2026-10-09",
+      "transaction_date": "2026-10-09",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "118975.59"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Wynagrodzenie 09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610093419345457",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "5980.77"
+      },
+      "creditor": {
+        "name": "Karolina Wierzchowska"
+      },
+      "creditor_account": {
+        "iban": "PL21105758378905183047944399"
+      },
+      "creditor_agent": {
+        "bic_fi": "INGBPLPW"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW - WYNAGRODZENIE",
+        "code": "ICDT",
+        "sub_code": "SALA"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-09",
+      "value_date": "2026-10-09",
+      "transaction_date": "2026-10-09",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "112994.82"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Wynagrodzenie 09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610095435590927",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "4105.33"
+      },
+      "creditor": {
+        "name": "Tomasz Grabowiecki"
+      },
+      "creditor_account": {
+        "iban": "PL15109859848014124236848141"
+      },
+      "creditor_agent": {
+        "bic_fi": "WBKPPLPP"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW - WYNAGRODZENIE",
+        "code": "ICDT",
+        "sub_code": "SALA"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-09",
+      "value_date": "2026-10-09",
+      "transaction_date": "2026-10-09",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "108889.49"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Wynagrodzenie 09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610096232801350",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1250.00"
+      },
+      "creditor": {
+        "name": "Komornik Sądowy przy Sądzie Rejonowym dla Warszawy-Mokotowa Rafał Ziemiański"
+      },
+      "creditor_account": {
+        "iban": "PL41124598786998481041608207"
+      },
+      "creditor_agent": {
+        "bic_fi": "PKOPPLPW"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-09",
+      "value_date": "2026-10-09",
+      "transaction_date": "2026-10-09",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "107639.49"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Komornik KM 1187/26 - zajecie wynagrodzenia dluznika Tomasz Grabowiecki za 09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610120329141687",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1845.00"
+      },
+      "creditor": {
+        "name": "Biuro Rachunkowe Bilans sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL62109387172199417359183076"
+      },
+      "creditor_agent": {
+        "bic_fi": "WBKPPLPP"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-12",
+      "value_date": "2026-10-12",
+      "transaction_date": "2026-10-12",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "105794.49"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "FV/2026/10/033 uslugi ksiegowe 09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610128715345043",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "286.40"
+      },
+      "creditor": {
+        "name": "Anna Mazur"
+      },
+      "creditor_account": {
+        "iban": "PL10114958040940956375786126"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-12",
+      "value_date": "2026-10-12",
+      "transaction_date": "2026-10-12",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "105508.09"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Zwrot kosztow - dekoracje kwiatowe Gala ACME"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610129033812558",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "520.00"
+      },
+      "creditor": {
+        "name": "NATALIA WÓJCICKA"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-12",
+      "value_date": "2026-10-12",
+      "transaction_date": "2026-10-12",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "104988.09"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Gala ACME koordynacja hostess 09.10",
+        "Przelew na telefon BLIK +48 500 727 230"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610126851950665",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "450.00"
+      },
+      "creditor": {
+        "name": "JULIA SOBIERAJ"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-12",
+      "value_date": "2026-10-12",
+      "transaction_date": "2026-10-12",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "104538.09"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Gala ACME hostessa 09.10",
+        "Przelew na telefon BLIK +48 500 117 215"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610124185038206",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "450.00"
+      },
+      "creditor": {
+        "name": "OLIWIA KARCZMAREK"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-12",
+      "value_date": "2026-10-12",
+      "transaction_date": "2026-10-12",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "104088.09"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Gala ACME hostessa 09.10",
+        "Przelew na telefon BLIK +48 500 405 231"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610121722469427",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "450.00"
+      },
+      "creditor": {
+        "name": "ZUZANNA PIETRASIK"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-12",
+      "value_date": "2026-10-12",
+      "transaction_date": "2026-10-12",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "103638.09"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Gala ACME hostessa 09.10",
+        "Przelew na telefon BLIK +48 500 591 873"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610136613771164",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "3075.00"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "Orbita Media sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL97109891848649662922442446"
+      },
+      "debtor_agent": {
+        "bic_fi": "WBKPPLPP"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW PRZYCHODZĄCY",
+        "code": "RCDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-13",
+      "value_date": "2026-10-13",
+      "transaction_date": "2026-10-13",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "106713.09"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Zaplata za FV 5/09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610131625662595",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "300.00"
+      },
+      "creditor": {
+        "name": "DAWID MICHALAK"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-13",
+      "value_date": "2026-10-13",
+      "transaction_date": "2026-10-13",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "106413.09"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "pomoc przy demontazu",
+        "Przelew na telefon BLIK +48 500 063 140"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610143818524718",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "3075.00"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "Orbita Media sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL97109891848649662922442446"
+      },
+      "debtor_agent": {
+        "bic_fi": "WBKPPLPP"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW PRZYCHODZĄCY",
+        "code": "RCDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-14",
+      "value_date": "2026-10-14",
+      "transaction_date": "2026-10-14",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "109488.09"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Zaplata za FV 5/09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610143186203462",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "25000.00"
+      },
+      "creditor": {
+        "name": "Scena Pro sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL69114818653705756556558562"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW MPP WYCHODZĄCY - NETTO",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-14",
+      "value_date": "2026-10-14",
+      "transaction_date": "2026-10-14",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "84488.09"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "/VAT/5750,00/IDC/9516127975/INV/SP/2026/10/087/TXT/technika Gala ACME"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610157109429897",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "14382.47"
+      },
+      "creditor": {
+        "name": "Zakład Ubezpieczeń Społecznych"
+      },
+      "creditor_account": {
+        "iban": "PL43600000020265342650778000"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW DO ZUS",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-15",
+      "value_date": "2026-10-15",
+      "transaction_date": "2026-10-15",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "70105.62"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Skladki ZUS za 09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610166224040945",
+      "merchant_category_code": "7372",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "437.12"
+      },
+      "creditor": {
+        "name": "GOOGLE *WORKSPACE ODMPAR"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "TRANSAKCJA KARTĄ - WALUTA OBCA",
+        "code": "CCRD",
+        "sub_code": "POSD"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-16",
+      "value_date": "2026-10-16",
+      "transaction_date": "2026-10-15",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "69668.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "GOOGLE *Workspace odmpar G.CO/HELPPAY# IE",
+        "Kwota oryg. 99,00 EUR, kurs 4,4154",
+        "Karta 5375 **** **** 4417"
+      ],
+      "exchange_rate": {
+        "unit_currency": "EUR",
+        "exchange_rate": "4.4154",
+        "rate_type": "SALE",
+        "contract_identification": null,
+        "instructed_amount": {
+          "currency": "EUR",
+          "amount": "99.00"
+        }
+      },
+      "note": null
+    },
+    {
+      "entry_reference": "202610160785476080",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1800.00"
+      },
+      "creditor": {
+        "name": "Marek Zawadzki"
+      },
+      "creditor_account": {
+        "iban": "PL28249241152270907285984411"
+      },
+      "creditor_agent": {
+        "bic_fi": "ALBPPLPW"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-16",
+      "value_date": "2026-10-16",
+      "transaction_date": "2026-10-16",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "67868.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Rachunek 4/2026 - konferansjerka Gala ACME 09.10"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610191974988946",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "400.00"
+      },
+      "creditor": {
+        "name": "AMELIA ZAWILSKA"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-19",
+      "value_date": "2026-10-19",
+      "transaction_date": "2026-10-19",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "67468.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Nordis Wroclaw hostessa 17.10",
+        "Przelew na telefon BLIK +48 500 014 009"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610197443800288",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "400.00"
+      },
+      "creditor": {
+        "name": "LENA KUCZYŃSKA"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-19",
+      "value_date": "2026-10-19",
+      "transaction_date": "2026-10-19",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "67068.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Nordis Wroclaw hostessa 17.10",
+        "Przelew na telefon BLIK +48 500 504 461"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610199643433857",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "400.00"
+      },
+      "creditor": {
+        "name": "WIKTORIA BARTOSZEK"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-19",
+      "value_date": "2026-10-19",
+      "transaction_date": "2026-10-19",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "66668.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Nordis Wroclaw hostessa 17.10",
+        "Przelew na telefon BLIK +48 500 003 489"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610195324026909",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "900.00"
+      },
+      "creditor": {
+        "name": "KINGA RUTKOWSKA"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-19",
+      "value_date": "2026-10-19",
+      "transaction_date": "2026-10-19",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "65768.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Helios Summit hostessa 15-16.10",
+        "Przelew na telefon BLIK +48 500 883 528"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610191274866862",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "900.00"
+      },
+      "creditor": {
+        "name": "PAULA WESOŁOWSKA"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-19",
+      "value_date": "2026-10-19",
+      "transaction_date": "2026-10-19",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "64868.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Helios Summit hostessa 15-16.10",
+        "Przelew na telefon BLIK +48 500 765 924"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610192377596813",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "900.00"
+      },
+      "creditor": {
+        "name": "EWA JABŁONOWSKA"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-19",
+      "value_date": "2026-10-19",
+      "transaction_date": "2026-10-19",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "63968.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Helios Summit hostessa 15-16.10",
+        "Przelew na telefon BLIK +48 500 927 519"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610202756598854",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "31104.00"
+      },
+      "creditor": {
+        "name": "Smaki Wisły Catering sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL87249647046873093580293586"
+      },
+      "creditor_agent": {
+        "bic_fi": "ALBPPLPW"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-20",
+      "value_date": "2026-10-20",
+      "transaction_date": "2026-10-20",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "32864.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Faktura 2026/10/0193 catering Gala ACME"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610205635891886",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1808.00"
+      },
+      "creditor": {
+        "name": "Jakub Wrona"
+      },
+      "creditor_account": {
+        "iban": "PL86114061589352186346519695"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-20",
+      "value_date": "2026-10-20",
+      "transaction_date": "2026-10-20",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "31056.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Umowa o dzielo 07/2026 - projekt scenografii Helios Summit"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610208183657650",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "3214.00"
+      },
+      "creditor": {
+        "name": "Urząd Skarbowy - mikrorachunek podatkowy"
+      },
+      "creditor_account": {
+        "iban": "PL05101000712225342650778000"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW DO URZĘDU SKARBOWEGO",
+        "code": "ICDT",
+        "sub_code": "TAXS"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-20",
+      "value_date": "2026-10-20",
+      "transaction_date": "2026-10-20",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "27842.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "/TI/N5342650778/OKR/26M09/SFP/PIT4R/TXT/zaliczki PIT 09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610201635845675",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "6450.00"
+      },
+      "creditor": {
+        "name": "Urząd Skarbowy - mikrorachunek podatkowy"
+      },
+      "creditor_account": {
+        "iban": "PL05101000712225342650778000"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW DO URZĘDU SKARBOWEGO",
+        "code": "ICDT",
+        "sub_code": "TAXS"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-20",
+      "value_date": "2026-10-20",
+      "transaction_date": "2026-10-20",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "21392.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "/TI/N5342650778/OKR/26M09/SFP/CIT8/TXT/zaliczka CIT 09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610219260141951",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "3075.00"
+      },
+      "creditor": {
+        "name": "Orbita Media sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL97109891848649662922442446"
+      },
+      "creditor_agent": {
+        "bic_fi": "WBKPPLPP"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-21",
+      "value_date": "2026-10-21",
+      "transaction_date": "2026-10-21",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "18317.50"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Zwrot nadplaty - podwojna wplata z 14.10.2026 za FV 5/09/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610221759883865",
+      "merchant_category_code": "5734",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "281.95"
+      },
+      "creditor": {
+        "name": "NOTION LABS INC"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "TRANSAKCJA KARTĄ - WALUTA OBCA",
+        "code": "CCRD",
+        "sub_code": "POSD"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-22",
+      "value_date": "2026-10-22",
+      "transaction_date": "2026-10-21",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "18035.55"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "NOTION LABS, INC. SAN FRANCISCO US",
+        "Kwota oryg. 72,00 USD, kurs 3,9160",
+        "Karta 5375 **** **** 4417"
+      ],
+      "exchange_rate": {
+        "unit_currency": "USD",
+        "exchange_rate": "3.9160",
+        "rate_type": "SALE",
+        "contract_identification": null,
+        "instructed_amount": {
+          "currency": "USD",
+          "amount": "72.00"
+        }
+      },
+      "note": null
+    },
+    {
+      "entry_reference": "202610234002647079",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "56000.00"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ACME Polska sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL19102602838510658312528272"
+      },
+      "debtor_agent": {
+        "bic_fi": "BPKOPLPW"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW MPP PRZYCHODZĄCY - NETTO",
+        "code": "RCDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "74035.55"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "/VAT/12880,00/IDC/5342650778/INV/FV 3/10/2026/TXT/rozliczenie Gala ACME"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610233423350565",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "14760.00"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "Revolut Bank UAB"
+      },
+      "debtor_account": {
+        "iban": "LT063250066711277862"
+      },
+      "debtor_agent": null,
+      "bank_transaction_code": {
+        "description": "PRZELEW PRZYCHODZĄCY",
+        "code": "RCDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "88795.55"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "KWADRAT DEVELOPMENT SP. Z O.O. - wynajem naglosnienia"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610232074877344",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "464.25"
+      },
+      "creditor": {
+        "name": "Orange Polska S.A."
+      },
+      "creditor_account": {
+        "iban": "PL32124961895923305167384944"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "88331.30"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "F/40020041/10/26"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610238895930439",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "349.41"
+      },
+      "creditor": {
+        "name": "Orange Polska S.A."
+      },
+      "creditor_account": {
+        "iban": "PL40124615074174224128583424"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "87981.89"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "F/40020215/10/26"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610234005550231",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "413.42"
+      },
+      "creditor": {
+        "name": "Orange Polska S.A."
+      },
+      "creditor_account": {
+        "iban": "PL56124239969824707293447676"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "87568.47"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "F/40020401/10/26"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610231207327033",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "404.76"
+      },
+      "creditor": {
+        "name": "Orange Polska S.A."
+      },
+      "creditor_account": {
+        "iban": "PL48124950105349288796128512"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "87163.71"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "F/40021164/10/26"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610234436463076",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "309.91"
+      },
+      "creditor": {
+        "name": "Orange Polska S.A."
+      },
+      "creditor_account": {
+        "iban": "PL24124955606406446042938710"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "86853.80"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "F/40021770/10/26"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610235181437466",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "390.23"
+      },
+      "creditor": {
+        "name": "Orange Polska S.A."
+      },
+      "creditor_account": {
+        "iban": "PL09124306463358624104869034"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "86463.57"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "F/40021998/10/26"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610232954944150",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "392.15"
+      },
+      "creditor": {
+        "name": "Orange Polska S.A."
+      },
+      "creditor_account": {
+        "iban": "PL20124572815428276492118011"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "86071.42"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "F/40022271/10/26"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610232283937056",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "369.62"
+      },
+      "creditor": {
+        "name": "Orange Polska S.A."
+      },
+      "creditor_account": {
+        "iban": "PL23124278357272443454074858"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "85701.80"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "F/40022282/10/26"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610236171165512",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "420.64"
+      },
+      "creditor": {
+        "name": "Orange Polska S.A."
+      },
+      "creditor_account": {
+        "iban": "PL88124591556604430209611564"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "85281.16"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "F/40022318/10/26"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610239443481757",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "152.52"
+      },
+      "creditor": {
+        "name": "Orange Polska S.A."
+      },
+      "creditor_account": {
+        "iban": "PL18124100268477118199138176"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "85128.64"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "F/40022346/10/26"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610236037395553",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "280.78"
+      },
+      "creditor": {
+        "name": "Orange Polska S.A."
+      },
+      "creditor_account": {
+        "iban": "PL67124004475774275860631794"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "84847.86"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "F/40022509/10/26"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610233396451346",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "432.31"
+      },
+      "creditor": {
+        "name": "Orange Polska S.A."
+      },
+      "creditor_account": {
+        "iban": "PL95124178360129415739688693"
+      },
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-23",
+      "value_date": "2026-10-23",
+      "transaction_date": "2026-10-23",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "84415.55"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "F/40022585/10/26"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610266785844198",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "3505.50"
+      },
+      "creditor": {
+        "name": "Mobilis Leasing sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL21160125851435609053808863"
+      },
+      "creditor_agent": {
+        "bic_fi": "PPABPLPK"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "POLECENIE ZAPŁATY",
+        "code": "IDDT",
+        "sub_code": "PMDD"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-26",
+      "value_date": "2026-10-26",
+      "transaction_date": "2026-10-26",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "80910.05"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Polecenie zaplaty L/10/2026/0815 rata 10/36"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610264228948107",
+      "merchant_category_code": "5542",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "377.20"
+      },
+      "creditor": {
+        "name": "STACJA PETROVA 214 LODZ"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "TRANSAKCJA KARTĄ",
+        "code": "CCRD",
+        "sub_code": "POSD"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-26",
+      "value_date": "2026-10-26",
+      "transaction_date": "2026-10-24",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "80532.85"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "STACJA PETROVA 214 LODZ PL",
+        "Karta 5375 **** **** 4417"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610266449035591",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "400.00"
+      },
+      "creditor": {
+        "name": "ALICJA GRABARCZYK"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-26",
+      "value_date": "2026-10-26",
+      "transaction_date": "2026-10-26",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "80132.85"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Nordis Lodz hostessa 24.10",
+        "Przelew na telefon BLIK +48 500 993 510"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610267505245647",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "400.00"
+      },
+      "creditor": {
+        "name": "LAURA MIKULSKA"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-26",
+      "value_date": "2026-10-26",
+      "transaction_date": "2026-10-26",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "79732.85"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Nordis Lodz hostessa 24.10",
+        "Przelew na telefon BLIK +48 500 785 406"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610268440070535",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "400.00"
+      },
+      "creditor": {
+        "name": "NIKOLA SZAFRAŃSKA"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-26",
+      "value_date": "2026-10-26",
+      "transaction_date": "2026-10-26",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "79332.85"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Nordis Lodz hostessa 24.10",
+        "Przelew na telefon BLIK +48 500 382 853"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610269739519729",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "400.00"
+      },
+      "creditor": {
+        "name": "MARTYNA OLEJNICZAK"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW NA TELEFON BLIK",
+        "code": "ICDT",
+        "sub_code": "OTHR"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-26",
+      "value_date": "2026-10-26",
+      "transaction_date": "2026-10-26",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "78932.85"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Nordis Lodz hostessa 24.10",
+        "Przelew na telefon BLIK +48 500 853 721"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610275984818978",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "10000.00"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ACME Polska sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL19102602838510658312528272"
+      },
+      "debtor_agent": {
+        "bic_fi": "BPKOPLPW"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW MPP PRZYCHODZĄCY - NETTO",
+        "code": "RCDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-27",
+      "value_date": "2026-10-27",
+      "transaction_date": "2026-10-27",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "88932.85"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "/VAT/2300,00/IDC/5342650778/INV/FV 7/10/2026/TXT/atrakcje Gala ACME"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610277149922608",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "4500.00"
+      },
+      "creditor": {
+        "name": "Kadr Studio Paweł Wierzbicki"
+      },
+      "creditor_account": {
+        "iban": "PL61105332734861380724338389"
+      },
+      "creditor_agent": {
+        "bic_fi": "INGBPLPW"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-27",
+      "value_date": "2026-10-27",
+      "transaction_date": "2026-10-27",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "84432.85"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "zaplata"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610280050568790",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "52737.50"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "Helios Software GmbH"
+      },
+      "debtor_account": {
+        "iban": "DE35100900004953145714"
+      },
+      "debtor_agent": {
+        "bic_fi": "BEVODEBBXXX"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW SEPA PRZYCHODZĄCY",
+        "code": "RCDT",
+        "sub_code": "XBCT"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-28",
+      "value_date": "2026-10-28",
+      "transaction_date": "2026-10-28",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "137170.35"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "INV FV 5/10/2026 HELIOS PARTNER SUMMIT 2026"
+      ],
+      "exchange_rate": {
+        "unit_currency": "EUR",
+        "exchange_rate": "4.2190",
+        "rate_type": "SPOT",
+        "contract_identification": null,
+        "instructed_amount": {
+          "currency": "EUR",
+          "amount": "12500.00"
+        }
+      },
+      "note": null
+    },
+    {
+      "entry_reference": "202610281026795668",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "25.00"
+      },
+      "creditor": null,
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "OPŁATA / PROWIZJA BANKOWA",
+        "code": "MDOP",
+        "sub_code": "CHRG"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-28",
+      "value_date": "2026-10-28",
+      "transaction_date": "2026-10-28",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "137145.35"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Prowizja - przelew zagraniczny przychodzacy SEPA"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610289276403991",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "16236.00"
+      },
+      "creditor": {
+        "name": "Scena Pro sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL69114818653705756556558562"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WYCHODZĄCY",
+        "code": "ICDT",
+        "sub_code": "DMCT"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-28",
+      "value_date": "2026-10-28",
+      "transaction_date": "2026-10-28",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "120909.35"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Zaplata za FV SP/2026/10/081, SP/2026/10/093, SP/2026/10/101"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610288152441704",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "3000.00"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL67114020040000310277812346"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "PRZEKSIĘGOWANIE Z RACHUNKU VAT",
+        "code": "RCDT",
+        "sub_code": "BOOK"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-28",
+      "value_date": "2026-10-28",
+      "transaction_date": "2026-10-28",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "123909.35"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Przeksiegowanie z rachunku VAT - postanowienie NUS 1471-SPV.4012.37.2026 z 21.10.2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610309011341667",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "15000.00"
+      },
+      "creditor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "creditor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "creditor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL80116022020000000412906733"
+      },
+      "debtor_agent": {
+        "bic_fi": "BIGBPLPW"
+      },
+      "bank_transaction_code": {
+        "description": "PRZELEW WŁASNY PRZYCHODZĄCY",
+        "code": "RCDT",
+        "sub_code": "BOOK"
+      },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-30",
+      "value_date": "2026-10-30",
+      "transaction_date": "2026-10-30",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "138909.35"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Przelew wlasny"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "202610302699472862",
+      "merchant_category_code": null,
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "89.00"
+      },
+      "creditor": null,
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "OPŁATA / PROWIZJA BANKOWA",
+        "code": "MDOP",
+        "sub_code": "CHRG"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-30",
+      "value_date": "2026-10-30",
+      "transaction_date": "2026-10-30",
+      "balance_after_transaction": {
+        "currency": "PLN",
+        "amount": "138820.35"
+      },
+      "reference_number": null,
+      "remittance_information": [
+        "Oplata za prowadzenie rachunku 10/2026"
+      ],
+      "exchange_rate": null,
+      "note": null
+    }
+  ],
+  "continuation_key": null
+}

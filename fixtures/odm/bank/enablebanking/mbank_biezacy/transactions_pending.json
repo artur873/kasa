@@ -1,0 +1,125 @@
+{
+  "transactions": [
+    {
+      "entry_reference": "P202610304028036773",
+      "merchant_category_code": "7011",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "1200.00"
+      },
+      "creditor": {
+        "name": "HOTEL VISTULA WARSZAWA"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "TRANSAKCJA KARTĄ",
+        "code": "CCRD",
+        "sub_code": "POSD"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "PDNG",
+      "booking_date": null,
+      "value_date": null,
+      "transaction_date": "2026-10-30",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "remittance_information": [
+        "HOTEL VISTULA WARSZAWA PL - preautoryzacja",
+        "Karta 5375 **** **** 4417"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "P202610319734087258",
+      "merchant_category_code": "5311",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "389.00"
+      },
+      "creditor": {
+        "name": "ALLEGRO.PL"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "TRANSAKCJA KARTĄ",
+        "code": "CCRD",
+        "sub_code": "POSD"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "PDNG",
+      "booking_date": null,
+      "value_date": null,
+      "transaction_date": "2026-10-31",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "remittance_information": [
+        "ALLEGRO.PL POZNAN PL",
+        "Karta 5375 **** **** 4417"
+      ],
+      "exchange_rate": null,
+      "note": null
+    },
+    {
+      "entry_reference": "P202610313107553993",
+      "merchant_category_code": "4121",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "46.80"
+      },
+      "creditor": {
+        "name": "UBER *TRIP"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "debtor_agent": {
+        "bic_fi": "BREXPLPWMBK"
+      },
+      "bank_transaction_code": {
+        "description": "TRANSAKCJA KARTĄ",
+        "code": "CCRD",
+        "sub_code": "POSD"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "PDNG",
+      "booking_date": null,
+      "value_date": null,
+      "transaction_date": "2026-10-31",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "remittance_information": [
+        "UBER *TRIP HELP.UBER.COM NL",
+        "Karta 5375 **** **** 4417"
+      ],
+      "exchange_rate": null,
+      "note": null
+    }
+  ],
+  "continuation_key": null
+}

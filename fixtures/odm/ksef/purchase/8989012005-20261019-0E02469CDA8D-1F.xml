@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+  <Naglowek>
+    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+    <WariantFormularza>3</WariantFormularza>
+    <DataWytworzeniaFa>2026-10-19T08:08:42Z</DataWytworzeniaFa>
+    <SystemInfo>Fakturownia</SystemInfo>
+  </Naglowek>
+  <Podmiot1>
+    <PrefiksPodatnika>PL</PrefiksPodatnika>
+    <DaneIdentyfikacyjne>
+      <NIP>8989012005</NIP>
+      <Nazwa>Przestrzeń Odra sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Wybrzeże Wyspiańskiego 20</AdresL1>
+      <AdresL2>50-370 Wrocław</AdresL2>
+    </Adres>
+  </Podmiot1>
+  <Podmiot2>
+    <DaneIdentyfikacyjne>
+      <NIP>5342650778</NIP>
+      <Nazwa>ODM Partners sp. z o.o.</Nazwa>
+    </DaneIdentyfikacyjne>
+    <Adres>
+      <KodKraju>PL</KodKraju>
+      <AdresL1>ul. Chmielna 73 lok. 4</AdresL1>
+      <AdresL2>00-801 Warszawa</AdresL2>
+    </Adres>
+    <DaneKontaktowe>
+      <Email>finanse@odmpartners.test</Email>
+    </DaneKontaktowe>
+    <JST>2</JST>
+    <GV>2</GV>
+  </Podmiot2>
+  <Fa>
+    <KodWaluty>PLN</KodWaluty>
+    <P_1>2026-10-19</P_1>
+    <P_1M>Wrocław</P_1M>
+    <P_2>2026/10/27</P_2>
+    <P_6>2026-10-17</P_6>
+    <P_13_1>5500.00</P_13_1>
+    <P_14_1>1265.00</P_14_1>
+    <P_15>6765.00</P_15>
+    <Adnotacje>
+      <P_16>2</P_16>
+      <P_17>2</P_17>
+      <P_18>2</P_18>
+      <P_18A>2</P_18A>
+      <Zwolnienie>
+        <P_19N>1</P_19N>
+      </Zwolnienie>
+      <NoweSrodkiTransportu>
+        <P_22N>1</P_22N>
+      </NoweSrodkiTransportu>
+      <P_23>2</P_23>
+      <PMarzy>
+        <P_PMarzyN>1</P_PMarzyN>
+      </PMarzy>
+    </Adnotacje>
+    <RodzajFaktury>VAT</RodzajFaktury>
+    <FaWiersz>
+      <NrWierszaFa>1</NrWierszaFa>
+      <P_7>Wynajem sali konferencyjnej A z wyposażeniem AV, 17.10.2026</P_7>
+      <P_8A>doba</P_8A>
+      <P_8B>1</P_8B>
+      <P_9A>5500.00</P_9A>
+      <P_11>5500.00</P_11>
+      <P_12>23</P_12>
+    </FaWiersz>
+    <Platnosc>
+      <TerminPlatnosci>
+        <Termin>2026-10-26</Termin>
+      </TerminPlatnosci>
+      <FormaPlatnosci>6</FormaPlatnosci>
+      <RachunekBankowy>
+        <NrRB>07109417757767144717329890</NrRB>
+        <NazwaBanku>Santander Bank Polska S.A.</NazwaBanku>
+      </RachunekBankowy>
+    </Platnosc>
+  </Fa>
+</Faktura>

@@ -1,0 +1,67 @@
+{
+  "accounts": [
+    {
+      "uid": "f4c5f07f-96a5-4de1-abfd-7987a4741201",
+      "account_id": {
+        "iban": "PL40114020040000350277812345"
+      },
+      "name": "ODM Partners sp. z o.o.",
+      "details": "mBank Biznes - rachunek bieżący PLN",
+      "product": "mBiznes konto Standard",
+      "cash_account_type": "CACC",
+      "currency": "PLN",
+      "usage": "ORGA",
+      "account_servicer": {
+        "bic_fi": "BREXPLPWMBK",
+        "name": "mBank S.A."
+      },
+      "fixture": {
+        "slug": "mbank_biezacy",
+        "kind": "current",
+        "has_balance_after_transaction": true
+      }
+    },
+    {
+      "uid": "00fde0cc-54aa-4967-a549-75d8e170a5b1",
+      "account_id": {
+        "iban": "PL67114020040000310277812346"
+      },
+      "name": "ODM Partners sp. z o.o.",
+      "details": "mBank Biznes - rachunek VAT",
+      "product": "Rachunek VAT (split payment)",
+      "cash_account_type": "CACC",
+      "currency": "PLN",
+      "usage": "ORGA",
+      "account_servicer": {
+        "bic_fi": "BREXPLPWMBK",
+        "name": "mBank S.A."
+      },
+      "fixture": {
+        "slug": "mbank_vat",
+        "kind": "vat",
+        "has_balance_after_transaction": true
+      }
+    },
+    {
+      "uid": "c9249616-355e-46ba-a565-7a8ac7eaf259",
+      "account_id": {
+        "iban": "PL80116022020000000412906733"
+      },
+      "name": "ODM Partners sp. z o.o.",
+      "details": "Millennium - rachunek bieżący PLN",
+      "product": "Konto Biznes Millennium",
+      "cash_account_type": "CACC",
+      "currency": "PLN",
+      "usage": "ORGA",
+      "account_servicer": {
+        "bic_fi": "BIGBPLPW",
+        "name": "Bank Millennium S.A."
+      },
+      "fixture": {
+        "slug": "millennium_biezacy",
+        "kind": "current",
+        "has_balance_after_transaction": false
+      }
+    }
+  ]
+}

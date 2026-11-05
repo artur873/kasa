@@ -1,0 +1,293 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<JPK xmlns="http://crd.gov.pl/wzor/2021/12/27/11148/">
+  <Naglowek>
+    <KodFormularza kodSystemowy="JPK_V7M (2)" wersjaSchemy="1-0E">JPK_VAT</KodFormularza>
+    <WariantFormularza>2</WariantFormularza>
+    <DataWytworzeniaJPK>2026-10-19T14:22:31</DataWytworzeniaJPK>
+    <NazwaSystemu>BiuroFK (fixture, struktura uproszczona)</NazwaSystemu>
+    <CelZlozenia poz="P_7">1</CelZlozenia>
+    <KodUrzedu>1435</KodUrzedu>
+    <Rok>2026</Rok>
+    <Miesiac>9</Miesiac>
+  </Naglowek>
+  <Podmiot1 rola="Podatnik">
+    <OsobaNiefizyczna>
+      <NIP>5342650778</NIP>
+      <PelnaNazwa>ODM Partners sp. z o.o.</PelnaNazwa>
+      <Email>finanse@odmpartners.test</Email>
+    </OsobaNiefizyczna>
+  </Podmiot1>
+  <Deklaracja>
+    <PozycjeSzczegolowe>
+      <P_19>64500</P_19>
+      <P_20>14835</P_20>
+      <P_38>14835</P_38>
+      <P_42>25903</P_42>
+      <P_43>5958</P_43>
+      <P_48>5958</P_48>
+      <P_51>8877</P_51>
+    </PozycjeSzczegolowe>
+  </Deklaracja>
+  <Ewidencja>
+    <SprzedazWiersz>
+      <LpSprzedazy>1</LpSprzedazy>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrKontrahenta>6775778803</NrKontrahenta>
+      <NazwaKontrahenta>Kwadrat Development sp. z o.o.</NazwaKontrahenta>
+      <DowodSprzedazy>FV 1/09/2026</DowodSprzedazy>
+      <DataWystawienia>2026-09-03</DataWystawienia>
+      <DataSprzedazy>2026-09-02</DataSprzedazy>
+      <K_19>4000.00</K_19>
+      <K_20>920.00</K_20>
+    </SprzedazWiersz>
+    <SprzedazWiersz>
+      <LpSprzedazy>2</LpSprzedazy>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrKontrahenta>5867422344</NrKontrahenta>
+      <NazwaKontrahenta>Nordis Retail sp. z o.o.</NazwaKontrahenta>
+      <DowodSprzedazy>FV 2/09/2026</DowodSprzedazy>
+      <DataWystawienia>2026-09-07</DataWystawienia>
+      <DataSprzedazy>2026-09-05</DataSprzedazy>
+      <K_19>32000.00</K_19>
+      <K_20>7360.00</K_20>
+    </SprzedazWiersz>
+    <SprzedazWiersz>
+      <LpSprzedazy>3</LpSprzedazy>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrKontrahenta>5213775822</NrKontrahenta>
+      <NazwaKontrahenta>ACME Polska sp. z o.o.</NazwaKontrahenta>
+      <DowodSprzedazy>FV 3/09/2026</DowodSprzedazy>
+      <DataWystawienia>2026-09-10</DataWystawienia>
+      <K_19>18500.00</K_19>
+      <K_20>4255.00</K_20>
+    </SprzedazWiersz>
+    <SprzedazWiersz>
+      <LpSprzedazy>4</LpSprzedazy>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrKontrahenta>5253143376</NrKontrahenta>
+      <NazwaKontrahenta>Agencja Fala sp. z o.o.</NazwaKontrahenta>
+      <DowodSprzedazy>FV 4/09/2026</DowodSprzedazy>
+      <DataWystawienia>2026-09-14</DataWystawienia>
+      <DataSprzedazy>2026-09-13</DataSprzedazy>
+      <K_19>7500.00</K_19>
+      <K_20>1725.00</K_20>
+    </SprzedazWiersz>
+    <SprzedazWiersz>
+      <LpSprzedazy>5</LpSprzedazy>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrKontrahenta>7795524621</NrKontrahenta>
+      <NazwaKontrahenta>Orbita Media sp. z o.o.</NazwaKontrahenta>
+      <DowodSprzedazy>FV/5/09/2026</DowodSprzedazy>
+      <DataWystawienia>2026-09-28</DataWystawienia>
+      <DataSprzedazy>2026-09-26</DataSprzedazy>
+      <K_19>2500.00</K_19>
+      <K_20>575.00</K_20>
+    </SprzedazWiersz>
+    <SprzedazCtrl>
+      <LiczbaWierszySprzedazy>5</LiczbaWierszySprzedazy>
+      <PodatekNalezny>14835.00</PodatekNalezny>
+    </SprzedazCtrl>
+    <ZakupWiersz>
+      <LpZakupu>1</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5265275853</NrDostawcy>
+      <NazwaDostawcy>Biuro Centrum sp. z o.o.</NazwaDostawcy>
+      <DowodZakupu>FV 12/09/2026</DowodZakupu>
+      <DataZakupu>2026-09-01</DataZakupu>
+      <DataWplywu>2026-09-01</DataWplywu>
+      <K_42>8000.00</K_42>
+      <K_43>1840.00</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>2</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5344047247</NrDostawcy>
+      <NazwaDostawcy>Biuro Rachunkowe Bilans sp. z o.o.</NazwaDostawcy>
+      <DowodZakupu>FV/2026/09/031</DowodZakupu>
+      <DataZakupu>2026-09-04</DataZakupu>
+      <DataWplywu>2026-09-04</DataWplywu>
+      <K_42>1500.00</K_42>
+      <K_43>345.00</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>3</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5263451926</NrDostawcy>
+      <NazwaDostawcy>Orange Polska S.A.</NazwaDostawcy>
+      <DowodZakupu>F/40020041/09/26</DowodZakupu>
+      <DataZakupu>2026-09-05</DataZakupu>
+      <DataWplywu>2026-09-07</DataWplywu>
+      <K_42>171.73</K_42>
+      <K_43>39.50</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>4</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5263451926</NrDostawcy>
+      <NazwaDostawcy>Orange Polska S.A.</NazwaDostawcy>
+      <DowodZakupu>F/40020215/09/26</DowodZakupu>
+      <DataZakupu>2026-09-05</DataZakupu>
+      <DataWplywu>2026-09-07</DataWplywu>
+      <K_42>240.38</K_42>
+      <K_43>55.29</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>5</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5263451926</NrDostawcy>
+      <NazwaDostawcy>Orange Polska S.A.</NazwaDostawcy>
+      <DowodZakupu>F/40020401/09/26</DowodZakupu>
+      <DataZakupu>2026-09-05</DataZakupu>
+      <DataWplywu>2026-09-07</DataWplywu>
+      <K_42>112.52</K_42>
+      <K_43>25.88</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>6</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5263451926</NrDostawcy>
+      <NazwaDostawcy>Orange Polska S.A.</NazwaDostawcy>
+      <DowodZakupu>F/40021164/09/26</DowodZakupu>
+      <DataZakupu>2026-09-05</DataZakupu>
+      <DataWplywu>2026-09-07</DataWplywu>
+      <K_42>163.48</K_42>
+      <K_43>37.60</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>7</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5263451926</NrDostawcy>
+      <NazwaDostawcy>Orange Polska S.A.</NazwaDostawcy>
+      <DowodZakupu>F/40021770/09/26</DowodZakupu>
+      <DataZakupu>2026-09-05</DataZakupu>
+      <DataWplywu>2026-09-07</DataWplywu>
+      <K_42>121.66</K_42>
+      <K_43>27.98</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>8</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5263451926</NrDostawcy>
+      <NazwaDostawcy>Orange Polska S.A.</NazwaDostawcy>
+      <DowodZakupu>F/40021998/09/26</DowodZakupu>
+      <DataZakupu>2026-09-05</DataZakupu>
+      <DataWplywu>2026-09-07</DataWplywu>
+      <K_42>134.13</K_42>
+      <K_43>30.85</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>9</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5263451926</NrDostawcy>
+      <NazwaDostawcy>Orange Polska S.A.</NazwaDostawcy>
+      <DowodZakupu>F/40022271/09/26</DowodZakupu>
+      <DataZakupu>2026-09-05</DataZakupu>
+      <DataWplywu>2026-09-07</DataWplywu>
+      <K_42>124.60</K_42>
+      <K_43>28.66</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>10</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5263451926</NrDostawcy>
+      <NazwaDostawcy>Orange Polska S.A.</NazwaDostawcy>
+      <DowodZakupu>F/40022282/09/26</DowodZakupu>
+      <DataZakupu>2026-09-05</DataZakupu>
+      <DataWplywu>2026-09-07</DataWplywu>
+      <K_42>128.40</K_42>
+      <K_43>29.53</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>11</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5263451926</NrDostawcy>
+      <NazwaDostawcy>Orange Polska S.A.</NazwaDostawcy>
+      <DowodZakupu>F/40022318/09/26</DowodZakupu>
+      <DataZakupu>2026-09-05</DataZakupu>
+      <DataWplywu>2026-09-07</DataWplywu>
+      <K_42>302.52</K_42>
+      <K_43>69.58</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>12</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5263451926</NrDostawcy>
+      <NazwaDostawcy>Orange Polska S.A.</NazwaDostawcy>
+      <DowodZakupu>F/40022346/09/26</DowodZakupu>
+      <DataZakupu>2026-09-05</DataZakupu>
+      <DataWplywu>2026-09-07</DataWplywu>
+      <K_42>196.51</K_42>
+      <K_43>45.20</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>13</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5263451926</NrDostawcy>
+      <NazwaDostawcy>Orange Polska S.A.</NazwaDostawcy>
+      <DowodZakupu>F/40022509/09/26</DowodZakupu>
+      <DataZakupu>2026-09-05</DataZakupu>
+      <DataWplywu>2026-09-07</DataWplywu>
+      <K_42>261.26</K_42>
+      <K_43>60.09</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>14</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5263451926</NrDostawcy>
+      <NazwaDostawcy>Orange Polska S.A.</NazwaDostawcy>
+      <DowodZakupu>F/40022585/09/26</DowodZakupu>
+      <DataZakupu>2026-09-05</DataZakupu>
+      <DataWplywu>2026-09-07</DataWplywu>
+      <K_42>196.30</K_42>
+      <K_43>45.15</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>15</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>9516127975</NrDostawcy>
+      <NazwaDostawcy>Scena Pro sp. z o.o.</NazwaDostawcy>
+      <DowodZakupu>SP/2026/09/064</DowodZakupu>
+      <DataZakupu>2026-09-08</DataZakupu>
+      <DataWplywu>2026-09-09</DataWplywu>
+      <K_42>3000.00</K_42>
+      <K_43>690.00</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>16</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>5271149722</NrDostawcy>
+      <NazwaDostawcy>Mobilis Leasing sp. z o.o.</NazwaDostawcy>
+      <DowodZakupu>L/09/2026/0815</DowodZakupu>
+      <DataZakupu>2026-09-10</DataZakupu>
+      <DataWplywu>2026-09-11</DataWplywu>
+      <K_42>2850.00</K_42>
+      <K_43>655.50</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>17</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>8970418075</NrDostawcy>
+      <NazwaDostawcy>Studio Graficzne Kreska sp. z o.o.</NazwaDostawcy>
+      <DowodZakupu>FV 12/09/2026</DowodZakupu>
+      <DataZakupu>2026-09-25</DataZakupu>
+      <DataWplywu>2026-09-26</DataWplywu>
+      <K_42>6000.00</K_42>
+      <K_43>1380.00</K_43>
+    </ZakupWiersz>
+    <ZakupWiersz>
+      <LpZakupu>18</LpZakupu>
+      <KodKrajuNadaniaTIN>PL</KodKrajuNadaniaTIN>
+      <NrDostawcy>7254098012</NrDostawcy>
+      <NazwaDostawcy>Drukarnia Format sp. z o.o.</NazwaDostawcy>
+      <DowodZakupu>214/09/2026</DowodZakupu>
+      <DataZakupu>2026-09-29</DataZakupu>
+      <DataWplywu>2026-09-30</DataWplywu>
+      <K_42>2400.00</K_42>
+      <K_43>552.00</K_43>
+    </ZakupWiersz>
+    <ZakupCtrl>
+      <LiczbaWierszyZakupow>18</LiczbaWierszyZakupow>
+      <PodatekNaliczony>5957.81</PodatekNaliczony>
+    </ZakupCtrl>
+  </Ewidencja>
+</JPK>

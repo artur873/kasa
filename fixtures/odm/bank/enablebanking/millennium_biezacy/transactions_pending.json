@@ -1,0 +1,45 @@
+{
+  "transactions": [
+    {
+      "entry_reference": "PML2610312564439",
+      "merchant_category_code": "4121",
+      "transaction_amount": {
+        "currency": "PLN",
+        "amount": "32.50"
+      },
+      "creditor": {
+        "name": "BOLT.EU"
+      },
+      "creditor_account": null,
+      "creditor_agent": null,
+      "debtor": {
+        "name": "ODM Partners sp. z o.o."
+      },
+      "debtor_account": {
+        "iban": "PL80116022020000000412906733"
+      },
+      "debtor_agent": {
+        "bic_fi": "BIGBPLPW"
+      },
+      "bank_transaction_code": {
+        "description": "TRANSAKCJA KARTĄ",
+        "code": "CCRD",
+        "sub_code": "POSD"
+      },
+      "credit_debit_indicator": "DBIT",
+      "status": "PDNG",
+      "booking_date": null,
+      "value_date": null,
+      "transaction_date": "2026-10-31",
+      "balance_after_transaction": null,
+      "reference_number": null,
+      "remittance_information": [
+        "BOLT.EU/R/2610311845 TALLINN EE",
+        "Karta 4026 **** **** 9031"
+      ],
+      "exchange_rate": null,
+      "note": null
+    }
+  ],
+  "continuation_key": null
+}
