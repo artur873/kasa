@@ -54,3 +54,13 @@ Status (faza 3, 5.11.2026): pkt 12 - `l1_semantics` (migracja 0008); pkt 15 - `k
 5. Semantyka nigdy nie czyta wierszy z `sensitive = true` (test dla modelu lokalnego i „zewnętrznego”).
 6. `extracted.phones` w `l1_bank_transaction` bez jawnego numeru (tylko pseudonim); `PARSER_SCHEMA_VERSION = 2`.
 
+
+## Faza 3 (5.11.2026)
+
+Blokujące (osobny agent poprawek, równolegle z 4A/4B):
+1. Adres bez prefiksu „ul.” nie jest pseudonimizowany („Kwiatowa 7, 05-500 Piaseczno”); dodać wzorce PL (nazwa + numer + kod pocztowy / m. / lok.) i zagraniczne (Street/Quay/Suite).
+2. „PESEL 44051401359 Marek Nowak”: nazwisko zostaje jawne, bo maska PESEL zaburza okno osoby; maska = granica, tokeny wielkimi literami poza oknem.
+6. „Jan Kowalski Kwiatowa 7” → osoba pochłania ulicę, niestabilny kod; okno osoby = imię + 1-2 nazwiska, token przed liczbą = adres.
+
+Ważne: 3. stemmer 4-literowy: fałszywe trafienia (zdrowa żywność, Szpitalna 5, Terapia sp. z o.o.) → kontekst osoby lub pełne słowo; przycisk „to nie jest wrażliwe” w kolejce (4). 4. `l1_semantics.input_pseudonymized` bez terminu wbrew 90 dniom → tylko skrót w L1 (5). 5. `sensitive` liczone tylko z tytułu, nie z nazwy kontrahenta; blokada nie jest trwałą flagą → ponawiana co przebieg (4). 7. terms/context ładowane raz na przebieg (4/5). 8. `shown_at` nadpisywany każdym GET → zaniżony czas decyzji (4).
+Drobne: 9. błędy walidacji pydantic logują fragment odpowiedzi modelu (`input`). 10. wygasanie payloadów tylko ręcznie (5). 11. TLS dla panelu w docs. 12. bramka 3 nie sprawdza adresów.
