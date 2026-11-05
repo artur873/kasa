@@ -6,8 +6,10 @@ office keeps the books). What kasa keeps and for how long:
 * source files (L0): until the end of the contract - then their content is purged
   by ``kasa_purge_raw`` (the row, the SHA-256 digest and the metadata stay, so the
   facts remain traceable and the same file is never stored again);
-* records: contract + 1 year, then persons are anonymized - their pseudonym keys
-  are shredded (``value_encrypted -> NULL``): pseudonyms stay, nobody can reverse them;
+* records: contract + 1 year, then persons are anonymized (``anonymize_persons``: the raw
+  columns, every derived text, the person counterparties) and with ``--shred`` their pseudonym
+  keys are shredded (``value_encrypted -> NULL``: pseudonyms stay, nobody can reverse them) and
+  the source files with persons still kept are purged;
 * model prompts and answers: 90 days - ``llm_call_payload`` is emptied by
   ``kasa_expire_llm_payloads()`` (``expire_llm_payloads``); the call log keeps only
   digests and lengths; access log: 3 years (enforced where those logs live).
@@ -151,11 +153,20 @@ def anonymize_persons(conn: psycopg.Connection, company_id: UUID, before: date, 
                       reason: str = "retencja: umowa + 1 rok (Krok 9)", shred_keys: bool = False) -> UUID | None:
     """Overwrite the raw personal columns of the records dated before ``before`` with their pseudonymous form
     (``kasa_anonymize_persons`` - the only UPDATE path the database allows for them, logged in
-    ``anonymization_log``). ``shred_keys``: also destroy the person keys created before that day."""
+    ``anonymization_log``), together with every text derived from those records (the queue's rank reasons,
+    facts of suggestions and decisions, rules, notes of control-set labels), every version of a person
+    counterparty, what a channel saw of a person's document and the model payloads of the records
+    (migration 0014; review of 4C/5, point 2).
+
+    ``shred_keys`` (CLI ``--shred``): also destroy the person keys created before that day and purge the
+    source files (L0) with persons whose records are all older than that day - the files are kept only until
+    the end of the contract (D6), so after "contract + 1 year" nothing of them may stay (``kasa_purge_raw``,
+    logged in ``l0_purge_log``)."""
     slug = conn.execute("SELECT extension_slug FROM company WHERE id = %s", (company_id,)).fetchone()
     log_id = conn.execute(
-        "SELECT kasa_anonymize_persons(%s, %s, %s, %s, %s, %s)",
-        (company_id, before, actor, reason, person_keys_for(slug[0] if slug else None), list(DEFAULT_DROP_KEYS)),
+        "SELECT kasa_anonymize_persons(%s, %s, %s, %s, %s, %s, %s)",
+        (company_id, before, actor, reason, person_keys_for(slug[0] if slug else None), list(DEFAULT_DROP_KEYS),
+         shred_keys),
     ).fetchone()[0]
     if shred_keys:
         shred_pseudonyms(conn, company_id, created_before=datetime.combine(before, datetime.min.time()))

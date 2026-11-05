@@ -248,6 +248,9 @@ def undo_batch(conn: psycopg.Connection, batch_id: UUID, *, decided_by: str, rea
 
 def history(conn: psycopg.Connection, company_id: UUID, *, limit: int = 50, include_auto: bool = False
             ) -> list[dict[str, Any]]:
+    """The person's decisions (with ``include_auto`` also the automation's), newest first. The decision a
+    waiting sentinel repeats is not listed until the sentinel is answered - it would tell the card apart
+    (review of 4C/5, point 5)."""
     with conn.cursor(row_factory=dict_row) as cur:
         rows = cur.execute(
             """
@@ -257,6 +260,9 @@ def history(conn: psycopg.Connection, company_id: UUID, *, limit: int = 50, incl
                    (SELECT v.id FROM l3_decision_log v WHERE v.reverts_decision_id = d.id LIMIT 1) AS revoked_by
               FROM l3_decision_log d
              WHERE d.company_id = %s AND (%s OR d.method = 'human')
+               AND NOT EXISTS (SELECT 1 FROM queue_sentinel s WHERE s.company_id = d.company_id
+                                 AND s.expected_source = 'decision' AND s.source_ref = d.id
+                                 AND s.answered_at IS NULL)
              ORDER BY d.decided_at DESC, d.id DESC LIMIT %s
             """,
             (company_id, include_auto, limit),
@@ -293,9 +299,12 @@ def describe_decision(conn: psycopg.Connection, row: dict[str, Any]) -> str:
 
 def stats(conn: psycopg.Connection, company_id: UUID) -> dict[str, Any]:
     """KPI of the queue (briefing, step 7): minutes of the person's work and errors weighted by amount."""
-    open_by_kind = dict(conn.execute(
+    open_by_kind: dict[str, int] = {}
+    for kind, count in conn.execute(
         "SELECT card_kind, count(*) FROM queue_state WHERE company_id = %s AND closed_at IS NULL GROUP BY 1",
-        (company_id,)).fetchall())
+        (company_id,)).fetchall():
+        shown = cards.SHOWN_KIND.get(kind, kind)          # a waiting sentinel counts as the match card it looks like
+        open_by_kind[shown] = open_by_kind.get(shown, 0) + count
     deferred = conn.execute(
         "SELECT count(*) FROM queue_state WHERE company_id = %s AND closed_at IS NULL AND deferred_until > now()",
         (company_id,)).fetchone()[0]
@@ -348,7 +357,8 @@ def stats(conn: psycopg.Connection, company_id: UUID) -> dict[str, Any]:
         (company_id,)).fetchone()[0]
     warnings = []
     if decided[3]:
-        warnings.append(f"{decided[3]} decyzji szybciej niż 0,8 s na kartach o niskiej odznace - sprawdź uważność")
+        warnings.append(f"{decided[3]} decyzji za szybko (< 0,8 s na karcie o niskiej odznace, < 1,5 s na karcie bez "
+                        "odznaki: kandydat, reguła, audyt) - sprawdź uważność")
     if sentinels[2]:
         warnings.append(f"wartownicy: {sentinels[2]} błędnych odpowiedzi na {sentinels[0]}")
     if audit[2]:

@@ -927,3 +927,15 @@ def expected_triggers() -> set[tuple[str, str]]:  # noqa: F811 - extended, never
         ("l1_pdf_extraction", "l1_pdf_extraction_raw_person_guard"),
         ("l1_document", "l1_document_raw_person_guard"),
     }
+
+_expected_triggers_before_review_fixes = expected_triggers
+
+
+def expected_triggers() -> set[tuple[str, str]]:  # noqa: F811 - extended, never edited
+    """0014 (review of 4C/5): the agent's suggestions are weak by the database; observations of documents are
+    facts that change only in the anonymization window."""
+    return _expected_triggers_before_review_fixes() | {
+        ("l2_suggestion", "l2_suggestion_agent_guard"),
+        ("l1_document_observation", "l1_document_observation_raw_person_guard"),
+        ("control_set_label_history", "control_set_label_history_append_only"),
+    }

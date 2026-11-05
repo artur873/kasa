@@ -21,7 +21,7 @@ candidates on their cards. Then:
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from fractions import Fraction
 from uuid import UUID
 
@@ -84,7 +84,8 @@ def test_the_person_answered_the_queue_through_its_buttons(clicked, gconn, odm):
     _, log = clicked
     assert log.buttons["approve"] == 5                     # the five candidates, on their cards
     # 39 match cards: 35 + 4 invoice numbers with a counterparty agreeing only by name (review of 4A, point 2)
-    assert log.cards["match"] == 39 and log.sentinels >= 2
+    # no sentinel while the person clicks: they repeat her OWN decisions older than 7 days (review of 4C/5, pt 5)
+    assert log.cards["match"] == 39 and log.sentinels == 0
     assert log.buttons["accept"] > 100                     # nearly every card: the first or another proposal
     # left in the queue: what the reference file does not decide (19 September documents of the JPK and the
     # 2 transfers "to clarify" - their allocation waits for the person's next step)
@@ -367,17 +368,22 @@ def test_g_sentinels_and_the_fast_decision_alarm(clicked, gconn, odm):
     answered = gconn.execute("SELECT count(*), count(*) FILTER (WHERE passed) FROM queue_sentinel "
                              "WHERE company_id = %s AND answered_at IS NOT NULL", (odm.id,)).fetchone()
     assert answered[0] == log.sentinels and answered[0] == answered[1]       # the careful person passed them all
-    # a careless answer fails - and nothing tells it on the card
+    # a week later the person meets one of her own decisions again - a careless answer fails, nothing tells it
     labels = reference.expected_labels(gconn, odm.id, TRUTH, "transaction")
+    later = datetime.now(timezone.utc) + timedelta(days=8)
     build.build(gconn, odm)
+    assert not [i for i in actions.list_items(gconn, odm.id) if i["card_kind"] == "sentinel"]   # fresh decisions
+    build.build(gconn, odm, now=later)
     sentinel = next((i for i in actions.list_items(gconn, odm.id) if i["card_kind"] == "sentinel"), None)
     if sentinel is None:                       # few cards left: one more sentinel for the test
         build.MIN_FOR_SENTINEL, previous = 0, build.MIN_FOR_SENTINEL
         try:
-            build.build(gconn, odm)
+            build.build(gconn, odm, now=later)
         finally:
             build.MIN_FOR_SENTINEL = previous
         sentinel = next(i for i in actions.list_items(gconn, odm.id) if i["card_kind"] == "sentinel")
+    assert gconn.execute("SELECT d.method::text FROM queue_sentinel s JOIN l3_decision_log d ON d.id = s.source_ref "
+                         "WHERE s.id = %s", (sentinel["sentinel_id"],)).fetchone() == ("human",)
     label = labels[("transaction", sentinel["subject_id"])]
     wrong_kind = "own_transfer" if label["status"] != "own_transfer" else "to_clarify"
     reply = actions.answer(gconn, sentinel["id"], "other", decided_by=USER, extra={"kind": wrong_kind})

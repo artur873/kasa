@@ -37,8 +37,8 @@ KPI, `state.py` czas pokazania i decyzji), decyzje `kasa/core/decisions.py` (dys
 | `cost_object_candidate` | karta kandydata 4B | nazwa, klient, daty, miasto, lista rekordów z typem i siłą (słowem), najsłabsze powiązanie, suma przychodu i kosztów | Zatwierdź, Podziel (zaznacz pierwszą grupę), Połącz z, Na pewno różne, Odrzuć |
 | `rule_candidate` | `rules.mine` | pytanie biznesowe, „X z Y u N kontrahentów”, 3 przykłady, wszystkie wyjątki | Akceptuj (jako podpowiedź), Popraw (nowa wersja), Odrzuć |
 | `rule_ready` | widok `rule_stage_effective` (`ready_for_auto`) | reguła, zgodne / niezgodne, dolna granica Wilsona | **Włącz auto** (jedno kliknięcie), Nie teraz |
-| `audit` | `l2_audit_sample` (2% decyzji automatu, min. 20) | oznaczenie „audyt”, decyzja automatu z faktami | Potwierdź, Błąd |
-| `sentinel` | wartownik (znana odpowiedź) | wygląda dokładnie jak karta `match` | jak `match`; wynik ukryty |
+| `audit` | `l2_audit_sample` (2% decyzji automatu, min. 20) | oznaczenie „audyt”, decyzja automatu z **dowodami z chwili decyzji** (`l3_decision_log.evidence.facts`, odznaka) i **innymi propozycjami, które automat wtedy odrzucił** (sugestie `rejected` z `resolved_by_decision` = ta decyzja) | Potwierdź, Błąd |
+| `sentinel` | wartownik (znana odpowiedź) | wygląda dokładnie jak karta `match` - także w API (`card_kind = match`, bez `sentinel_id`) | jak `match`; wynik ukryty |
 
 Zasady karty:
 
@@ -126,15 +126,24 @@ to jeden kontrahent z NIP-em) | rozstrzygnięcie. Tylko otwarte propozycje rank 
 Dodatkowo: obserwacje reguł z tej decyzji są wycofywane (reguła traci punkt, w etapie auto poniżej progu → zawieszona),
 a cofnięcie **decyzji automatu** to poprawka: reguła (także wbudowana) zostaje zawieszona ze szkicem post-mortem.
 
-## 6. Wartownik i alarm 0,8 s
+## 6. Wartownik i alarm „za szybko”
 
-* Co ok. 50 kart (`round(n / 50)`, min. 1 przy ≥ 10 kartach nieodłożonych) `build` wstawia wartownika: przelew ze
-  znaną odpowiedzią - Twoją wcześniejszą decyzją (`expected_source = decision`) albo etykietą zbioru kontrolnego
-  (`control_set`), pokazany z jego własnymi propozycjami. Karta wygląda jak każda inna; odpowiedź nie jest decyzją,
-  trafia do `queue_sentinel` (`passed`), odpowiedź API jest identyczna („Zapisano”), wynik widać tylko w KPI.
+* Co ok. 50 kart (`round(n / 50)`, min. 1 przy ≥ 10 kartach nieodłożonych) `build` wstawia wartownika: **powtórkę
+  Twojej własnej decyzji dopasowania starszej niż 7 dni** (`expected_source = decision`, decyzja człowieka w mocy),
+  pokazaną z jej własnymi propozycjami (przegląd 4C/5, pkt 5). Nigdy przelew zamknięty przez automat ani etykieta
+  zbioru kontrolnego (tego przelewu nie widziałeś - a „Historia” z decyzjami automatu by go zdradziła). Bez takich
+  decyzji (świeża baza, symulacja kliknięć z dzisiejszą datą) wartowników nie ma; `build(..., now=...)` liczy wiek
+  decyzji od podanej chwili (testy: „kliknięcia sprzed 8 dni”).
+* Karta wygląda jak każda inna - w panelu, w API (`/api/queue` mapuje `card_kind` przez `SHOWN_KIND`, nie zwraca
+  `sentinel_id`; raport `build` w panelu i API liczy wartownika jako `match`; KPI „otwarte karty wg rodzaju” też),
+  odpowiedź nie jest decyzją, trafia do `queue_sentinel` (`passed`), odpowiedź API to „Zapisano”, wynik widać tylko
+  w KPI. Do czasu odpowiedzi decyzja, którą wartownik powtarza, **nie jest widoczna w „Historii”** (panel i
+  `/api/queue/history`), a agent nie widzi karty w `views.queue` ani w lustrze `evidence.queue_state`
+  (`sentinel_id` zawsze NULL).
 * `shown_at` = **pierwsze** pokazanie karty (`COALESCE`; przeładowanie nie zeruje zegara - przegląd fazy 3, pkt 8),
-  `duration_ms` = decyzja − pierwsze pokazanie. Decyzja szybsza niż 0,8 s na karcie z odznaką „niska” →
-  `fast_alarm` i ostrzeżenie w `queue stats`.
+  `duration_ms` = decyzja − pierwsze pokazanie. `fast_alarm` (i ostrzeżenie w `queue stats`): decyzja szybsza niż
+  **0,8 s** na karcie z odznaką „niska” albo szybsza niż **1,5 s** na karcie bez odznaki - kandydat na obiekt,
+  kandydat na regułę, reguła gotowa, audyt (przegląd 4C/5, pkt 12).
 
 ## 7. KPI (`queue stats`, `/queue/stats`)
 
@@ -159,7 +168,7 @@ API JSON (dokumentacja `/api/docs`):
 | Metoda i ścieżka | Co robi |
 | --- | --- |
 | `GET /api/queue?company=odm` | karty w kolejności (pozycja, rodzaj, powód rangi, odznaka, paczka) |
-| `POST /api/queue/build` `{company?, min_months?}` | przebuduj kolejkę |
+| `POST /api/queue/build` `{company?}` | przebuduj kolejkę (próg `--min-months` kopania reguł tylko w CLI; nieznane pole → 422) |
 | `GET /api/queue/next` | następna karta (zapisuje pierwsze pokazanie) |
 | `GET /api/queue/items/{id}` | karta |
 | `GET /api/queue/items/{id}/documents?q=` | wyszukiwarka dokumentów do „Inne…” |
@@ -196,12 +205,18 @@ zostały tylko testy, które zmieniały etap reguły bez decyzji (`tests/matchin
 `test_schema_and_fx.py`, `tests/allocation/test_allocation.py`, `tests/gates/test_gate1.py` - teraz z wpisem
 w dzienniku, a bramka 1 sprawdza też odmowę bez decyzji).
 
+Od 0014 jedyny wyjątek to **okno anonimizacji** (`kasa_anonymize_persons`, flaga `kasa.anonymize` + wpis w
+`anonymization_log` tej samej transakcji): wolno w nim przepisać wyłącznie teksty (`evidence`, `reason`, `payload`,
+`question`, `exceptions`, `post_mortem`, `suspended_reason`) - nazwiska stają się pseudonimami, decyzje się nie
+zmieniają (zob. `docs/SCHEMAT.md`, 0014).
+
 ## 11. Wyniki na danych testowych (bramka 4)
 
-Świeża baza, pełny potok: kolejka 141 kart (35 dopasowań, 5 kandydatów, 97 alokacji, 1 słowo wrażliwe, 3
-wartowników). Symulacja użytkownika klika kartami zgodnie z `ground_truth.json`: 5 zatwierdzeń kandydatów, 107
-„Akceptuj” (pierwsza albo inna propozycja), 1 „Inne…” (komornik: bez dokumentu / inne), 1 kategoria, 8 wartowników
-(wszystkie dobrze); zostaje 21 kart, których plik prawdy nie rozstrzyga (19 dokumentów historycznych z JPK, 2 przelewy
+Świeża baza, pełny potok: kolejka 141 kart (35 dopasowań, 5 kandydatów, 97 alokacji, 1 słowo wrażliwe; od
+przeglądu 4C/5 bez wartowników - żadnej decyzji człowieka jeszcze nie ma). Symulacja użytkownika klika kartami
+zgodnie z `ground_truth.json`: 5 zatwierdzeń kandydatów, 107 „Akceptuj” (pierwsza albo inna propozycja), 1 „Inne…”
+(komornik: bez dokumentu / inne), 1 kategoria, 0 wartowników (decyzje są świeże; bramka (g) przebudowuje kolejkę
+„8 dni później” i dopiero wtedy wartownik - powtórka decyzji człowieka - się pojawia); zostaje 21 kart, których plik prawdy nie rozstrzyga (19 dokumentów historycznych z JPK, 2 przelewy
 do wyjaśnienia). Wynik: 0 fałszywych automatów (45 dopasowań, 21 alokacji), 5 obiektów zatwierdzonych kartą, raport
 firmy z różnicą kontrolną 0,00 w obu ujęciach i marżami 5 eventów co do grosza, kontrole prawdy 1-5 zielone, paczka 12
 przelewów Orange (4 380,00 zł) przyjęta i cofnięta jednym ruchem.
@@ -220,7 +235,8 @@ przelewów Orange (4 380,00 zł) przyjęta i cofnięta jednym ruchem.
   alokacji pokazywałyby propozycje sprzed zatwierdzenia.
 * „To nie jest wrażliwe” dla słowa z rdzenia zapisuje wyjątek (`sensitive_exception`), ale semantyka fazy 3 go
   jeszcze nie czyta (ponowny odczyt modelu tego podmiotu - faza 5); słowo człowieka jest wycofywane od razu.
-* Wartownicy ze zbioru kontrolnego pokazują propozycje przelewu rozstrzygniętego już automatem - na danych
-  testowych innych przelewów ze znaną odpowiedzią nie ma.
+* Wartownik to tylko powtórka Twojej decyzji sprzed ponad 7 dni (od przeglądu 4C/5); etykiety zbiorów kontrolnych
+  i decyzje automatu nie są już jego źródłem. Odpowiedź na wartownika nie ma toastu „Cofnij” (nie ma decyzji do
+  cofnięcia) - to jedyna różnica widoczna po kliknięciu.
 * Remis z więcej niż trzema fakturami: karta liczy równorzędne faktury sama (silnik trzyma najwyżej 3 propozycje).
-* Alarm 0,8 s liczy się tylko dla kart pokazanych (`shown_at`); decyzje z CLI bez `queue show` nie mają czasu.
+* Alarm „za szybko” liczy się tylko dla kart pokazanych (`shown_at`); decyzje z CLI bez `queue show` nie mają czasu.

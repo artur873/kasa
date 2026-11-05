@@ -18,6 +18,11 @@ from kasa.core.metrics.base import Computed, Metric, MetricContext, MetricError,
 from kasa.core.reports.company import CompanyReport, company_report
 
 
+# the company report and the loaders it stands on: their whole source is part of every definition below
+REPORT_MODULES = ("kasa.core.reports.company", "kasa.core.allocation.amounts", "kasa.core.allocation.objects",
+                  "kasa.core.allocation.subjects", "kasa.core.cost_objects_discovery.text")
+
+
 def report_for(ctx: MetricContext, month: str) -> CompanyReport:
     return ctx.cached(("company_report", month), lambda: company_report(ctx.conn, ctx.company_id, month))
 
@@ -100,6 +105,7 @@ class MarginAccrual(Metric):
                 "Kwota w otwartej sugestii nie wchodzi do marży - jest w udziale niepotwierdzonych.",
                 "Marża obiektu kosztowego, nie osoby (kasa nie ocenia pracowników).")
     uses = (report_for, object_windows, allocation_provenance, _select_objects)
+    uses_modules = REPORT_MODULES
 
     def compute(self, ctx: MetricContext, *, period: Period | None, as_of: date | None, dimensions: list[str],
                 filters: dict[str, Any]) -> Computed:
@@ -163,6 +169,7 @@ class MarginFullyLoaded(Metric):
                 "Liczona tylko za okres (miesiąc): koszty obiektu sprzed okresu nie wchodzą.",
                 "Przychód UNASSIGNED nie jest kosztem ogólnym - dzielony jest tylko koszt UNASSIGNED.")
     uses = (report_for, distribute)
+    uses_modules = REPORT_MODULES
 
     def compute(self, ctx: MetricContext, *, period: Period | None, as_of: date | None, dimensions: list[str],
                 filters: dict[str, Any]) -> Computed:
@@ -216,6 +223,7 @@ class CashContribution(Metric):
                 "unmatched_own), nie „własny”.",
                 "Noga VAT split payment to osobny przelew dopasowany do tej samej faktury - każdy liczony raz.")
     uses = (report_for,)
+    uses_modules = REPORT_MODULES
 
     def compute(self, ctx: MetricContext, *, period: Period | None, as_of: date | None, dimensions: list[str],
                 filters: dict[str, Any]) -> Computed:
@@ -273,6 +281,7 @@ class CompanyResult(Metric):
                 "Zaliczka i proforma nie są przychodem; okres usługi rozkłada się po dniach.",
                 "Różnica kontrolna inna niż 0,00 to błąd systemu, nie szum.")
     uses = (report_for,)
+    uses_modules = REPORT_MODULES
 
     def compute(self, ctx: MetricContext, *, period: Period | None, as_of: date | None, dimensions: list[str],
                 filters: dict[str, Any]) -> Computed:
@@ -324,6 +333,7 @@ class RevenueAccrualNet(Metric):
                 "Okres usługi 1-31.05 rozkłada się po dniach (część w jednym miesiącu, część w drugim).",
                 "Faktura rozliczeniowa (ROZ) = całe zamówienie; korekta = różnica.")
     uses = (report_for,)
+    uses_modules = REPORT_MODULES
 
     def compute(self, ctx: MetricContext, *, period: Period | None, as_of: date | None, dimensions: list[str],
                 filters: dict[str, Any]) -> Computed:
@@ -364,6 +374,7 @@ class AllocationCoverage(Metric):
     traps_pl = ("UNASSIGNED to decyzja („koszt ogólny”), „jeszcze nie patrzyłem” to brak decyzji - dwa różne wiersze.",
                 "Sugestia nie jest przypisaniem: kwota w sugestii jest w „jeszcze nie patrzyłem”.")
     uses = (report_for,)
+    uses_modules = REPORT_MODULES
 
     def compute(self, ctx: MetricContext, *, period: Period | None, as_of: date | None, dimensions: list[str],
                 filters: dict[str, Any]) -> Computed:

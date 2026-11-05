@@ -16,7 +16,7 @@
   <tr><td>Audyt</td><td>wylosowano {{ s.audit.sampled }}, potwierdzone {{ s.audit.confirmed }}, błędy {{ s.audit.errors }}, otwarte {{ s.audit.open }}</td></tr>
   <tr><td>Cofnięcia</td><td>w 10 s {{ s.revocations.in_toast_window }}, później {{ s.revocations.later }}, decyzji automatu {{ s.revocations.of_automation }}</td></tr>
   <tr><td>Wartownicy</td><td>odpowiedzi {{ s.sentinels.answered }}, dobre {{ s.sentinels.passed }}, złe {{ s.sentinels.failed }}</td></tr>
-  <tr><td>Alarm &lt; 0,8 s</td><td>{{ s.fast_alarms }}</td></tr>
+  <tr><td>Alarm „za szybko” (&lt; 0,8 s niska odznaka, &lt; 1,5 s bez odznaki)</td><td>{{ s.fast_alarms }}</td></tr>
 </table></div>
 <div class="card"><table>{% for d in s.by_day %}<tr><td>{{ d.day }}</td><td>{{ d.cards }} kart</td><td>{{ d.minutes }} min</td></tr>{% endfor %}</table></div>
 {% endblock %}

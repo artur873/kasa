@@ -19,7 +19,10 @@ model) - and checked:
 (d) every answer carries the version of the metric, the state of the data and the unconfirmed share -
     "30% of the costs are still in suggestions" before clicking, 0% after;
 (e) two paths, one number: the dashboard (owner role) = the agent (role ``kasa_agent_ro``);
-(f) the roles of the database refuse what the agent must not do.
+(f) the roles of the database refuse what the agent must not do;
+(g) the golden result: every metric (every key@version) on the clicked fixtures gives the numbers recorded in
+    ``kasa/core/metrics/golden.lock.json`` - a number that moved without a new version fails (review of 4C/5,
+    point 8; ``python -m kasa metrics golden --write`` after a deliberate new version).
 """
 
 from __future__ import annotations
@@ -386,3 +389,18 @@ def test_f_roles_refuse_what_the_agent_must_not_do(owner):
     with pytest.raises(psycopg.Error) as err, owner.transaction():
         owner.execute("SELECT title_raw FROM views.transactions")
     assert err.value.sqlstate == "42703"
+
+
+# ---------------------------------------------------------------------------
+# (g) the golden result of the metric layer
+# ---------------------------------------------------------------------------
+
+
+def test_g_every_metric_gives_its_golden_result(owner):
+    from kasa.core.companies import get_company
+    from kasa.core.metrics import golden
+
+    recorded = golden.read_golden()
+    assert set(recorded) == {cls.ref() for cls in registry.implementations().values()}
+    differences = golden.compare(golden.golden_values(owner, get_company(owner, "odm").id), recorded)
+    assert not differences, "\n".join(differences)

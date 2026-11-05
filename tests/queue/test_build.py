@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from kasa.core.queue import actions, build, state
+from tests.queue.pipeline import answer_match_cards
 
 
 def test_queue_has_every_kind_of_open_work_ordered_by_what_blocks_the_metrics(qconn, odm):
@@ -15,7 +16,9 @@ def test_queue_has_every_kind_of_open_work_ordered_by_what_blocks_the_metrics(qc
     # 39 transfers for a person (4A; 4 of them an invoice number with a counterparty agreeing only by name),
     # 5 cost object candidates (4B), allocation proposals, 1 sensitive title
     assert kinds["match"] == 39 and kinds["cost_object_candidate"] == 5 and kinds["sensitive"] == 1
-    assert kinds["allocation"] > 50 and kinds["sentinel"] >= 1
+    assert kinds["allocation"] > 50
+    # no decision of the person yet: no sentinel (they repeat the person's own decisions older than 7 days)
+    assert "sentinel" not in kinds
     ordered = [i for i in items if i["card_kind"] != "sentinel"]
     # candidates block the allocations -> first; then the largest outflows without a document
     assert [i["card_kind"] for i in ordered[:5]] == ["cost_object_candidate"] * 5
@@ -42,19 +45,54 @@ def test_rebuild_is_idempotent_and_closes_what_was_decided_elsewhere(qconn, odm)
     assert state.get(qconn, match["id"])["outcome"] == "resolved_elsewhere"
 
 
-def test_sentinel_every_fifty_cards_looks_like_any_card(qconn, odm):
+def test_sentinels_repeat_the_persons_own_older_decisions_only(qconn, odm):
+    """Review of 4C/5, point 5: never a transfer the automation closed, never a control-set label - a repeat of
+    the person's own decision older than 7 days; hidden from the history and the agent until answered."""
+    decided = answer_match_cards(qconn, odm, 12)
+    assert len(decided) == 12
+    build.build(qconn, odm)                                        # the decisions are fresh: still no sentinel
+    assert not [i for i in actions.list_items(qconn, odm.id) if i["card_kind"] == "sentinel"]
+    # the clicks with their date moved back by 8 days (the build looks from 8 days later)
+    report = build.build(qconn, odm, now=datetime.now(timezone.utc) + timedelta(days=8))
     items = actions.list_items(qconn, odm.id, include_deferred=False)
     sentinels = [i for i in items if i["card_kind"] == "sentinel"]
     regular = len(items) - len(sentinels)
-    assert len(sentinels) == max(1, round(regular / build.SENTINEL_EVERY))
+    assert report.sentinels_added == len(sentinels) == min(len(decided), max(1, round(regular / build.SENTINEL_EVERY)))
+    assert {s["subject_id"] for s in sentinels} <= set(decided)
+    known = qconn.execute("SELECT expected, expected_source, source_ref FROM queue_sentinel WHERE company_id = %s",
+                          (odm.id,)).fetchall()
+    assert known and all(k[1] == "decision" and k[0]["final_status"] for k in known)
+    sources = {k[2] for k in known}
+    assert qconn.execute("SELECT count(*) FROM l3_decision_log WHERE id = ANY(%s) AND method = 'human' AND "
+                         "decided_at < now() + interval '1 day'", (list(sources),)).fetchone()[0] == len(sources)
     positions = sorted(i["position"] for i in sentinels)
     assert all(abs(p - round((n + 1) * len(items) / (len(sentinels) + 1))) <= len(sentinels) + 1
                for n, p in enumerate(positions))
     card = actions.card(qconn, sentinels[0]["id"])
     assert card["kind"] == "match" and "sentinel" not in str({k: v for k, v in card.items() if k != "id"})
-    known = qconn.execute("SELECT expected, expected_source FROM queue_sentinel WHERE id = %s",
-                          (sentinels[0]["sentinel_id"],)).fetchone()
-    assert known[0]["final_status"] and known[1] in ("decision", "control_set")
+    # the decision it repeats is not in the history until the sentinel is answered
+    history = {h["id"] for h in actions.history(qconn, odm.id, limit=500, include_auto=True)}
+    assert not (sources & history) and len(history) >= len(decided) - len(sources)
+    # ... and the agent sees neither the card nor its known answer
+    qconn.execute("SET LOCAL ROLE kasa_agent_ro")
+    qconn.execute("SELECT set_config('kasa.company_id', %s, true)", (str(odm.id),))
+    assert qconn.execute("SELECT count(*) FROM views.queue WHERE card_kind = 'sentinel'").fetchone() == (0,)
+    assert qconn.execute("SELECT count(*) FROM evidence.queue_state WHERE card_kind = 'sentinel' OR sentinel_id "
+                         "IS NOT NULL").fetchone() == (0,)
+    qconn.execute("RESET ROLE")
+    # answered: the decision is back in the history (and the card is gone from the queue)
+    actions.answer(qconn, sentinels[0]["id"], "accept", decided_by="artur")
+    history = {h["id"] for h in actions.history(qconn, odm.id, limit=500)}
+    answered = qconn.execute("SELECT source_ref FROM queue_sentinel WHERE id = %s",
+                             (sentinels[0]["sentinel_id"],)).fetchone()[0]
+    assert answered in history and not (sources - {answered}) & history
+    # the decision a waiting sentinel repeats is revoked: the sentinel leaves the queue unanswered
+    if len(sentinels) > 1:
+        source = qconn.execute("SELECT source_ref FROM queue_sentinel WHERE id = %s",
+                               (sentinels[1]["sentinel_id"],)).fetchone()[0]
+        actions.undo(qconn, source, decided_by="artur")
+        build.build(qconn, odm, now=datetime.now(timezone.utc) + timedelta(days=8))
+        assert state.get(qconn, sentinels[1]["id"])["outcome"] == "resolved_elsewhere"
 
 
 def test_first_shown_time_is_kept_and_defer_moves_the_card_to_the_end(qconn, odm):

@@ -4,7 +4,9 @@ For every booked transaction and current document without a category in force: t
 ``applicable_rules`` with ``action.kind = 'category'``, effective stage ``auto`` and no conflict
 write ``l3_category_decision`` with ``method = 'rule'`` signed with the rule and its version (the
 database refuses it when the rule is not in stage auto - KS004). A subject sent to a person because
-of a sensitive word is never categorized by a rule.
+of a sensitive word is never categorized by a rule. A suggestion of the agent (``source = 'agent'``)
+never steers the automation - here or in ``kasa.core.allocation.auto`` (review of 4C/5, point 7; the
+database also makes every agent suggestion weak: trigger ``l2_suggestion_agent_guard``, 0014).
 """
 
 from __future__ import annotations
@@ -61,7 +63,7 @@ def apply_category_rules(conn: psycopg.Connection, company: Any, *, dry_run: boo
         """
         SELECT subject_type::text, subject_id FROM l2_suggestion
          WHERE company_id = %s AND kind = 'category' AND proposal @> '{"needs_human": true}'::jsonb
-           AND status IN ('open', 'accepted')
+           AND status IN ('open', 'accepted') AND source <> 'agent'
         """,
         (company_id,)).fetchall()}
     for subject_type, subject_id in subjects:

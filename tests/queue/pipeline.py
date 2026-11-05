@@ -145,6 +145,24 @@ def _press_allocation(conn, item, card, want: dict[UUID, Fraction] | None, log: 
     log.other.append(f"allocation {item['subject_type']} {card['subject'].get('title')}")
 
 
+def answer_match_cards(conn: psycopg.Connection, company, count: int) -> list[UUID]:
+    """The person answers the first ``count`` match cards of the queue as the reference truth says (the
+    transfers she has decided herself - the only source of sentinels). Returns the decided transfers."""
+    truth = load_truth()
+    labels = reference.expected_labels(conn, company.id, truth, "transaction")
+    log = ClickLog()
+    decided: list[UUID] = []
+    for item in actions.list_items(conn, company.id, include_deferred=False):
+        if len(decided) >= count:
+            break
+        if item["card_kind"] != "match" or ("transaction", item["subject_id"]) not in labels:
+            continue
+        card = actions.card(conn, item["id"])
+        _press_match(conn, item, card, labels[("transaction", item["subject_id"])], log)
+        decided.append(item["subject_id"])
+    return decided
+
+
 def click_queue(conn: psycopg.Connection, company, *, max_cards: int = 600) -> ClickLog:
     """Answer the whole queue as the reference truth says (cards in the queue's own order)."""
     truth = load_truth()

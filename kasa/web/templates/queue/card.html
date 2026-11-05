@@ -153,7 +153,15 @@
 {% elif card.kind == 'audit' %}
   {% set a = card.audit %}
   <div class="card"><p>Decyzja automatu ({{ a.rule_key }}, {{ a.decided_at }}):</p><p class="title"><strong>{{ a.decision }}</strong></p>
-    <ul class="lines">{% for f in a.facts %}<li>{{ f }}</li>{% endfor %}</ul></div>
+    {% if a.badge %}<div class="muted small"><span class="badge {{ a.badge }}">{{ a.badge_pl }}</span>{% if a.precedents %} · {{ a.precedents }} precedensów{% endif %}</div>{% endif %}
+    <p class="muted small">Dowody z chwili decyzji:</p>
+    <ul class="lines">{% for f in a.facts %}<li>{{ f }}</li>{% else %}<li>brak zapisanych dowodów</li>{% endfor %}</ul></div>
+  {% if a.alternatives %}
+  <div class="card"><p class="muted small">Inne propozycje, które automat wtedy odrzucił ({{ a.alternatives|length }}):</p>
+    {% for o in a.alternatives %}<div><strong>{{ o.label }}</strong> <span class="badge {{ o.badge }}">{{ o.badge_pl }}</span>
+      <ul class="lines">{% for f in o.facts %}<li>{{ f }}</li>{% endfor %}</ul></div>{% endfor %}
+  </div>
+  {% endif %}
   <div class="actions">
     <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="confirmed">
       <button type="submit">Potwierdź</button></form>

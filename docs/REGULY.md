@@ -74,6 +74,14 @@ Dowody: decyzje człowieka w mocy (nie cofnięte) oraz - dla strategii dopasowan
 identyfikatorze w tytule (numer KSeF, blok MPP, numer faktury: dowodem jest identyfikator, nie decyzja automatu).
 Decyzja automatu bez twardego identyfikatora **nigdy** nie jest dowodem (system nie potwierdza sam siebie).
 
+Od przeglądu 4C/5 (pkt 3) decyzja automatu z tagiem twardego identyfikatora liczy się **tylko wtedy, gdy
+identyfikatory z tytułu same rozstrzygają grupę** (`mine.title_resolves`): każdy numer z tytułu (odczytany kodem:
+`extracted.ksef_numbers`, blok MPP z NIP-em wystawcy, `extracted.invoice_numbers` z formami alternatywnymi) wskazuje
+dokładnie jeden bieżący dokument firmy w kierunku przelewu, a razem to dokładnie dokumenty decyzji (porównane jako
+łańcuchy wersji). Inaczej przypadek jest pomijany: tytuł z numerem, który mają dwa dokumenty (w fixtures
+„FV 12/09/2026” dwóch sprzedawców - automat wybrał po kontrahencie), tytuł z jednym numerem przy rozliczeniu dwóch
+faktur, numer bez dokumentu, tytuł bez numeru.
+
 | Rodzina | Dowód | Akcja | Pytanie |
 | --- | --- | --- | --- |
 | `category` | kategorie nadane przez Ciebie (nadawca/IBAN → kategoria: ZUS, US, Orange) | `category` | „Czy Orange Polska S.A. to zawsze kategoria „IT/SaaS”?” |
@@ -114,12 +122,21 @@ Dopasowania i alokacje z reguł stosują 4A i 4B. Kategorie - `apply_category_ru
 przelewu albo dokumentu bez kategorii, gdy trafia reguła `category` w etapie auto bez konfliktu, zapis
 `l3_category_decision` z `method = 'rule'`, podpisany regułą i wersją. Podmiot ze słowem wrażliwym nigdy.
 
+Sugestia agenta (`source = 'agent'`) nigdy nie steruje automatem: `rules/auto.py` i `allocation/auto.py` mają jawny
+filtr `source <> 'agent'`, a baza (trigger `l2_suggestion_agent_guard`, 0014) i tak zapisuje każdą sugestię z roli
+`kasa_agent_suggest` jako słabą propozycję modelu (`method = 'model'`, bez rangi, `score`/`confidence` ≤ 0,9,
+`evidence.hard = false`, `auto_eligible = false`, bez licencji reguły, odznaka niska) - przegląd 4C/5, pkt 7.
+
 ## 8. Audyt (`audit.py`, `l2_audit_sample`)
 
 Co miesiąc 2% decyzji automatu w mocy, **min. 20** (mniej niż 20 = wszystkie), losowo z zapisanym ziarnem; miesiąc =
 data podmiotu (księgowania przelewu, sprzedaży dokumentu, wiersza). Losowanie raz na miesiąc (idempotentne).
-Próbka to zwykła karta kolejki z oznaczeniem „audyt”: Potwierdź / Błąd. Błąd = cofnięcie decyzji automatu (przelew
-wraca do kolejki) i zawieszenie reguły ze szkicem post-mortem; kwota błędu wchodzi do KPI „błędy ważone kwotą”.
+Próbka to zwykła karta kolejki z oznaczeniem „audyt”: Potwierdź / Błąd. Karta pokazuje decyzję automatu z dowodami z
+chwili decyzji (`l3_decision_log.evidence.facts`, odznaka) i wszystkie propozycje, które automat wtedy odrzucił
+(sugestie `rejected` z `resolved_by_decision` tej decyzji) - oceniasz wybór, nie tylko wynik (przegląd 4C/5, pkt 6).
+Decyzja na karcie audytu szybsza niż 1,5 s to alarm „za szybko” (karta bez odznaki, pkt 12). Błąd = cofnięcie
+decyzji automatu (przelew wraca do kolejki) i zawieszenie reguły ze szkicem post-mortem; kwota błędu wchodzi do KPI
+„błędy ważone kwotą”.
 
 ## 9. Symulacja (`rules simulate`)
 

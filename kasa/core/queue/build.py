@@ -16,7 +16,10 @@ Order (briefing, step 7): first what blocks the metrics and costs most when wron
 | 300 kandydat na regułę                    | a business question                                         |
 
 Within a class: the amount (``10 * log10(1 + PLN)``, at most +99). Deferred cards go to the end until
-their date. A sentinel (known answer, hidden result) about every 50 cards.
+their date. A sentinel (known answer, hidden result) about every 50 cards: a repeat of the person's OWN
+match decision older than 7 days (review of 4C/5, point 5 - never a transfer the automation closed, never a
+label of a control set); without such decisions there are no sentinels. Until it is answered, its source
+decision is hidden from the history of the queue and the card from the agent's views.
 """
 
 from __future__ import annotations
@@ -24,7 +27,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -36,6 +39,7 @@ from kasa.core.matching.engine import money
 
 SENTINEL_EVERY = 50
 MIN_FOR_SENTINEL = 10
+SENTINEL_MIN_AGE = timedelta(days=7)      # a sentinel repeats a decision of the person older than this
 BADGE_PL = {"high": "wysoka", "medium": "średnia", "low": "niska"}
 
 
@@ -71,11 +75,23 @@ class BuildReport:
     rules: str | None = None
     auto_categories: int = 0
 
-    def summary(self) -> str:
-        kinds = ", ".join(f"{k} {v}" for k, v in sorted(self.by_kind.items(), key=lambda kv: -kv[1]))
+    def shown_by_kind(self) -> dict[str, int]:
+        """Cards by kind as the person sees them: a sentinel counts as the match card it looks like."""
+        from kasa.core.queue.cards import SHOWN_KIND
+
+        out: dict[str, int] = {}
+        for kind, count in self.by_kind.items():
+            shown = SHOWN_KIND.get(kind, kind)
+            out[shown] = out.get(shown, 0) + count
+        return out
+
+    def summary(self, *, for_person: bool = False) -> str:
+        """The report; ``for_person`` (panel, API): nothing about sentinels (they must look like any card)."""
+        by_kind = self.shown_by_kind() if for_person else self.by_kind
+        kinds = ", ".join(f"{k} {v}" for k, v in sorted(by_kind.items(), key=lambda kv: -kv[1]))
         lines = [f"Kolejka {self.company}: kart {self.items} ({kinds})",
-                 f"  nowe {self.created}, odświeżone {self.updated}, zamknięte {self.closed}, odłożone {self.deferred}, "
-                 f"wartownicy dodani {self.sentinels_added}"]
+                 f"  nowe {self.created}, odświeżone {self.updated}, zamknięte {self.closed}, odłożone {self.deferred}"
+                 + ("" if for_person else f", wartownicy dodani {self.sentinels_added}")]
         if self.auto_categories:
             lines.append(f"  reguły auto nadały kategorie: {self.auto_categories}")
         if self.rules:
@@ -315,8 +331,12 @@ def normalize_answer(proposal: dict[str, Any]) -> dict[str, Any]:
     return {"final_status": status, "subtype": subtype, "targets": sorted(targets) if status == "matched" else []}
 
 
-def _sentinel_pool(conn: psycopg.Connection, company_id: UUID, busy: set[UUID]) -> list[dict[str, Any]]:
-    """Subjects with a known answer and a shown proposal set: decisions of a person, then control-set labels."""
+def _sentinel_pool(conn: psycopg.Connection, company_id: UUID, busy: set[UUID], *,
+                   now: datetime | None = None) -> list[dict[str, Any]]:
+    """Subjects with a known answer and a shown proposal set: match decisions of a PERSON older than 7 days
+    (a repeat of her own decision). Never a decision of the automation and never a control-set label: a
+    transfer the person never decided would be a card she has not seen before - and the history ("auto")
+    would tell it apart (review of 4C/5, point 5)."""
     used = {r[0] for r in conn.execute("SELECT subject_id FROM queue_sentinel WHERE company_id = %s",
                                        (company_id,)).fetchall()}
     pool = []
@@ -324,23 +344,16 @@ def _sentinel_pool(conn: psycopg.Connection, company_id: UUID, busy: set[UUID]) 
         """
         SELECT d.id, d.subject_id, d.payload FROM l3_decision_log d
          WHERE d.company_id = %s AND d.kind = 'match' AND d.method = 'human' AND d.subject_type = 'transaction'
+           AND d.decided_at < coalesce(%s::timestamptz, now()) - %s::interval
            AND NOT EXISTS (SELECT 1 FROM l3_decision_log v WHERE v.reverts_decision_id = d.id)
+           AND EXISTS (SELECT 1 FROM l3_transaction_status x WHERE x.transaction_id = d.subject_id
+                         AND x.decision_id = d.id AND x.status = 'active')
          ORDER BY d.decided_at
         """,
-        (company_id,),
+        (company_id, now, SENTINEL_MIN_AGE),
     ).fetchall():
         pool.append({"subject_id": subject_id, "expected": normalize_answer(payload or {}),
                      "source": "decision", "ref": decision_id})
-    for item_id, subject_id, label in conn.execute(
-        """
-        SELECT i.id, i.subject_id, i.label FROM control_set_item i JOIN control_set c ON c.id = i.set_id
-         WHERE i.company_id = %s AND c.kind = 'transaction' AND i.label IS NOT NULL AND i.subject_type = 'transaction'
-         ORDER BY i.set_id, i.order_no
-        """,
-        (company_id,),
-    ).fetchall():
-        pool.append({"subject_id": subject_id, "expected": normalize_answer(label or {}),
-                     "source": "control_set", "ref": item_id})
     out, seen = [], set()
     for entry in pool:
         subject = entry["subject_id"]
@@ -351,7 +364,7 @@ def _sentinel_pool(conn: psycopg.Connection, company_id: UUID, busy: set[UUID]) 
             SELECT array_agg(id ORDER BY rank) FROM (
                 SELECT DISTINCT ON (rank) id, rank FROM l2_suggestion
                  WHERE company_id = %s AND kind = 'match' AND subject_id = %s AND rank IS NOT NULL
-                   AND source <> 'queue.other'
+                   AND source <> 'queue.other' AND source <> 'agent'
                  ORDER BY rank, created_at DESC) s
             """,
             (company_id, subject),
@@ -367,7 +380,8 @@ def _sentinel_positions(n: int, k: int) -> list[int]:
     return [max(1, round((i + 1) * n / (k + 1))) for i in range(k)]
 
 
-def _add_sentinels(conn: psycopg.Connection, company_id: UUID, regular: int, busy: set[UUID]) -> list[Item]:
+def _add_sentinels(conn: psycopg.Connection, company_id: UUID, regular: int, busy: set[UUID], *,
+                   now: datetime | None = None) -> list[Item]:
     if regular < MIN_FOR_SENTINEL:
         return []
     wanted = max(1, round(regular / SENTINEL_EVERY))
@@ -378,7 +392,7 @@ def _add_sentinels(conn: psycopg.Connection, company_id: UUID, regular: int, bus
     missing = wanted - waiting
     if missing <= 0:
         return []
-    pool = _sentinel_pool(conn, company_id, busy)
+    pool = _sentinel_pool(conn, company_id, busy, now=now)
     if not pool:
         return []
     rng = random.Random(f"{company_id}:{regular}:{waiting}")
@@ -461,8 +475,12 @@ def _reorder(conn: psycopg.Connection, company_id: UUID) -> int:
 
 
 def build(conn: psycopg.Connection, company: Any, *, mine_rules: bool = True, min_months: int = 2,
-          auto_rules: bool = True, sentinels: bool = True, created_by: str = "kasa.queue") -> BuildReport:
-    """Rebuild the queue of a company (idempotent; cards keep their first shown time and deferral)."""
+          auto_rules: bool = True, sentinels: bool = True, created_by: str = "kasa.queue",
+          now: datetime | None = None) -> BuildReport:
+    """Rebuild the queue of a company (idempotent; cards keep their first shown time and deferral).
+
+    ``now``: the moment the age of the person's decisions is measured from (sentinels: older than 7 days);
+    default the database's ``now()`` - tests and simulations move it forward."""
     company_id = _company_id(company)
     slug = getattr(company, "slug", str(company_id))
     report = BuildReport(slug)
@@ -494,6 +512,22 @@ def build(conn: psycopg.Connection, company: Any, *, mine_rules: bool = True, mi
             conn.execute("UPDATE queue_state SET closed_at = clock_timestamp(), outcome = 'resolved_elsewhere' "
                          "WHERE id = %s", (item_id,))
             report.closed += 1
+    # a waiting sentinel that no longer repeats a decision of the person in force (a control-set label or the
+    # automation's decision - the rule before the review of 4C/5 - or a decision revoked since) leaves the queue
+    # unanswered (the known answer stays in queue_sentinel)
+    for (item_id,) in conn.execute(
+        """
+        SELECT q.id FROM queue_state q JOIN queue_sentinel s ON s.id = q.sentinel_id
+         WHERE q.company_id = %s AND q.closed_at IS NULL AND q.card_kind = 'sentinel'
+           AND NOT (s.expected_source = 'decision'
+                    AND EXISTS (SELECT 1 FROM l3_decision_log d WHERE d.id = s.source_ref AND d.method = 'human')
+                    AND NOT EXISTS (SELECT 1 FROM l3_decision_log v WHERE v.reverts_decision_id = s.source_ref))
+        """,
+        (company_id,),
+    ).fetchall():
+        conn.execute("UPDATE queue_state SET closed_at = clock_timestamp(), outcome = 'resolved_elsewhere' "
+                     "WHERE id = %s", (item_id,))
+        report.closed += 1
     if sentinels:
         busy = {i.subject_id for i in items}
         regular = conn.execute(
@@ -503,7 +537,7 @@ def build(conn: psycopg.Connection, company: Any, *, mine_rules: bool = True, mi
             """,
             (company_id,),
         ).fetchone()[0]
-        for sentinel in _add_sentinels(conn, company_id, regular, busy):
+        for sentinel in _add_sentinels(conn, company_id, regular, busy, now=now):
             _upsert(conn, company_id, sentinel)
             report.sentinels_added += 1
     report.deferred = _reorder(conn, company_id)

@@ -163,6 +163,13 @@ def test_sensitive_card_category_by_the_person(qconn, odm):
 
 
 def test_sentinel_answer_is_stored_hidden_and_never_a_decision(qconn, odm):
+    from datetime import datetime, timedelta, timezone
+
+    from kasa.core.queue import build
+    from tests.queue.pipeline import answer_match_cards
+
+    answer_match_cards(qconn, odm, 15)                # the person's own decisions, seen again 8 days later
+    build.build(qconn, odm, now=datetime.now(timezone.utc) + timedelta(days=8))
     sentinel = next(i for i in actions.list_items(qconn, odm.id) if i["card_kind"] == "sentinel")
     expected = qconn.execute("SELECT expected FROM queue_sentinel WHERE id = %s", (sentinel["sentinel_id"],)
                              ).fetchone()[0]
@@ -177,6 +184,7 @@ def test_sentinel_answer_is_stored_hidden_and_never_a_decision(qconn, odm):
                            ).fetchone()
     assert passed[0] is (wrong is None) or passed[0] == (passed[1] == expected)
     assert actions.stats(qconn, odm.id)["sentinels"]["answered"] == 1
+    assert "sentinel" not in actions.stats(qconn, odm.id)["open_by_kind"]   # counted as the match card it looks like
 
 
 def test_fast_decision_on_a_low_card_is_an_alarm(qconn, odm):

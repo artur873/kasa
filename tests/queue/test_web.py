@@ -110,3 +110,55 @@ def test_queue_is_protected_by_the_token_outside_localhost(qconn):
     with TestClient(create_app(connection_factory=factory, user="artur", company="odm", token="sekret")) as c:
         assert c.get("/queue").status_code == 401 and c.get("/api/queue").status_code == 401
         assert c.get("/queue", params={"token": "sekret"}).status_code == 200
+
+
+SENTINEL_WORDS = re.compile(r"sentinel|wartowni", re.I)
+
+
+def test_nothing_in_the_api_or_the_panel_tells_a_sentinel_apart(client, qconn):
+    """Review of 4C/5, point 1: the list of the API mapped ``card_kind = 'sentinel'`` to nothing - every answer
+    about a sentinel's card (list, next, card, documents, "Inne…", the answer, the rebuild) says "match"."""
+    from datetime import datetime, timedelta, timezone
+
+    from kasa.core.companies import get_company
+    from kasa.core.queue import actions, build
+    from tests.queue.pipeline import answer_match_cards
+
+    odm = get_company(qconn, "odm")
+    answer_match_cards(qconn, odm, 15)
+    build.build(qconn, odm, now=datetime.now(timezone.utc) + timedelta(days=8))
+    sentinels = [i for i in actions.list_items(qconn, odm.id) if i["card_kind"] == "sentinel"]
+    assert sentinels
+    listed = client.get("/api/queue")
+    assert listed.status_code == 200 and not SENTINEL_WORDS.search(listed.text)
+    rows = {row["id"]: row for row in listed.json()}
+    assert {"card_kind", "position", "rank_reason"} <= set(rows[str(sentinels[0]["id"])])
+    assert all(rows[str(s["id"])]["card_kind"] == "match" and "sentinel_id" not in rows[str(s["id"])]
+               for s in sentinels)
+    for sentinel in sentinels:
+        item = str(sentinel["id"])
+        for url in (f"/api/queue/items/{item}", f"/queue/items/{item}", f"/queue/items/{item}/other",
+                    f"/api/queue/items/{item}/documents"):
+            page = client.get(url)
+            assert page.status_code == 200 and not SENTINEL_WORDS.search(page.text), url
+    # the next card when a sentinel is first in line
+    qconn.execute("UPDATE queue_state SET position = 0 WHERE id = %s", (sentinels[0]["id"],))
+    nxt = client.get("/api/queue/next")
+    assert nxt.json()["card"]["id"] == str(sentinels[0]["id"]) and not SENTINEL_WORDS.search(nxt.text)
+    page = client.get("/queue")
+    assert page.status_code == 200 and not SENTINEL_WORDS.search(page.text)
+    # the answer looks like any other; the rebuild reports a sentinel as a match card
+    answered = client.post(f"/api/queue/items/{sentinels[0]['id']}/accept", json={})
+    assert answered.status_code == 200 and not SENTINEL_WORDS.search(answered.text)
+    rebuilt = client.post("/api/queue/build", json={})
+    assert rebuilt.status_code == 200 and not SENTINEL_WORDS.search(rebuilt.text)
+    html = client.post("/queue/build", data={"company": "odm"})
+    assert not SENTINEL_WORDS.search(html.text)
+    assert not SENTINEL_WORDS.search(client.get("/api/queue/history").text)
+
+
+def test_min_months_is_not_in_the_api_of_the_panel(client):
+    """Review of 4C/5, point 14: the mining threshold is a CLI option only."""
+    refused = client.post("/api/queue/build", json={"min_months": 1})
+    assert refused.status_code == 422 and "min_months" in refused.text
+    assert client.post("/api/queue/build", json={}).status_code == 200

@@ -273,6 +273,10 @@ class Metric:
     ``period_mode``: ``month`` - needs a period (default: the month of the data state), ``as_of`` - a day
     (default: the day of the data state), ``optional`` - a period may narrow the answer, ``none``.
     ``uses``: helper functions whose source is part of the definition (and of its SHA-256).
+    ``uses_modules``: modules (dotted names) whose WHOLE source is part of the definition - the shared loaders a
+    metric stands on (the company report, the allocation loaders, the state of the data). A change anywhere in
+    them changes the SHA-256 (scheme 2 of ``registry.code_hash``) and so needs a new version (review of 4C/5,
+    point 8). Declare it on ONE line (scheme 1 of the hash ignores that line).
     """
 
     key: ClassVar[str]
@@ -286,6 +290,7 @@ class Metric:
     traps_pl: ClassVar[tuple[str, ...]] = ()
     period_mode: ClassVar[str] = "month"
     uses: ClassVar[tuple[Any, ...]] = ()
+    uses_modules: ClassVar[tuple[str, ...]] = ()
 
     def compute(self, ctx: MetricContext, *, period: Period | None, as_of: date | None, dimensions: list[str],
                 filters: dict[str, Any]) -> Computed:  # pragma: no cover - abstract

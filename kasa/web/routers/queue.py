@@ -25,7 +25,7 @@ from uuid import UUID
 import psycopg
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from kasa.core import control_sets as cs
 from kasa.core.companies import Company, get_company, list_companies
@@ -274,8 +274,8 @@ async def build_page(request: Request, conn: Conn) -> Any:
     form = await request.form()
     owner = _company(conn, request, str(form.get("company") or "") or None)
     report = build.build(conn, owner)
-    return RedirectResponse(f"/queue?company={owner.slug}&msg={quote(report.summary().splitlines()[0])}",
-                            status_code=303)
+    headline = report.summary(for_person=True).splitlines()[0]
+    return RedirectResponse(f"/queue?company={owner.slug}&msg={quote(headline)}", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -310,8 +310,12 @@ class UndoIn(BaseModel):
 
 
 class BuildIn(BaseModel):
+    """Rebuild the queue. The mining threshold (``--min-months``) is a CLI-only option (review of 4C/5,
+    point 14): the panel always mines with the briefing's 2 months; an unknown field is refused."""
+
+    model_config = ConfigDict(extra="forbid")
+
     company: str | None = None
-    min_months: int = 2
 
 
 def _json_safe(value: Any) -> Any:
@@ -338,19 +342,22 @@ def _do(request: Request, conn: psycopg.Connection, item_id: UUID, action: str, 
 
 @api.get("")
 def api_list(request: Request, conn: Conn, company: str | None = None, deferred: bool = True) -> list[dict]:
+    """The open cards in order. A sentinel is listed as the match card it looks like (``card_kind`` through
+    ``SHOWN_KIND``, no ``sentinel_id``) - nothing in the answer tells it apart (review of 4C/5, point 1)."""
     owner = _company(conn, request, company)
-    keys = ("id", "position", "card_kind", "subject_type", "subject_id", "rank_reason", "badge", "deferred_until",
-            "batch_key", "shown_at")
-    return [_json_safe({k: row[k] for k in keys}) for row in actions.list_items(conn, owner.id,
-                                                                                 include_deferred=deferred)]
+    keys = ("id", "position", "subject_type", "subject_id", "rank_reason", "badge", "deferred_until", "batch_key",
+            "shown_at")
+    return [_json_safe({**{k: row[k] for k in keys},
+                        "card_kind": queue_cards.SHOWN_KIND.get(row["card_kind"], row["card_kind"])})
+            for row in actions.list_items(conn, owner.id, include_deferred=deferred)]
 
 
 @api.post("/build")
 def api_build(request: Request, conn: Conn, body: BuildIn) -> dict[str, Any]:
     owner = _company(conn, request, body.company)
-    report = build.build(conn, owner, min_months=body.min_months)
-    return {"items": report.items, "by_kind": report.by_kind, "created": report.created, "closed": report.closed,
-            "sentinels_added": report.sentinels_added, "summary": report.summary()}
+    report = build.build(conn, owner)
+    return {"items": report.items, "by_kind": report.shown_by_kind(), "created": report.created,
+            "closed": report.closed, "summary": report.summary(for_person=True)}
 
 
 @api.get("/next")

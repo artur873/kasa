@@ -3,7 +3,9 @@
 * ``mark_shown`` - the FIRST time a card is sent (``COALESCE``): a reload never resets the clock
   (review of phase 3, point 8);
 * ``mark_decided`` - closes the open cards of a subject for a decision: time of the decision
-  (``duration_ms`` = decision - first shown) and the alarm "< 0.8 s on a low card" (briefing, step 7);
+  (``duration_ms`` = decision - first shown) and the alarm "too fast": < 0.8 s on a card with the badge
+  "low" (briefing, step 7), < 1.5 s on a card without a badge - a cost object candidate, a rule, an audit
+  sample (review of 4C/5, point 12: nothing on such a card can be read in under 1.5 s);
 * ``defer`` - "Odłóż" until a date (default: tomorrow);
 * ``mark_revoked`` - a revoked decision: its cards say so (the subject returns at the next build).
 """
@@ -18,6 +20,8 @@ import psycopg
 from psycopg.rows import dict_row
 
 FAST_MS = 800              # briefing, step 7: a decision under 0.8 s on a "low" card is an alarm
+FAST_NO_BADGE_MS = 1500    # review of 4C/5, point 12: under 1.5 s on a card without a badge
+NO_BADGE_KINDS = ("cost_object_candidate", "rule_candidate", "rule_ready", "audit")
 
 
 def get(conn: psycopg.Connection, item_id: UUID) -> dict[str, Any]:
@@ -50,12 +54,16 @@ def _close(conn: psycopg.Connection, where: str, params: tuple, *, decision_id: 
                    closed_at = clock_timestamp(),
                    duration_ms = CASE WHEN shown_at IS NOT NULL
                        THEN greatest(0, (extract(epoch FROM clock_timestamp() - shown_at) * 1000))::integer END,
-                   fast_alarm = coalesce(shown_at IS NOT NULL AND badge = 'low'
-                                         AND extract(epoch FROM clock_timestamp() - shown_at) * 1000 < %s, false)
+                   fast_alarm = coalesce(shown_at IS NOT NULL AND (
+                       (badge = 'low' AND card_kind <> ALL(%s)
+                        AND extract(epoch FROM clock_timestamp() - shown_at) * 1000 < %s)
+                       OR ((badge IS NULL OR card_kind = ANY(%s))
+                           AND extract(epoch FROM clock_timestamp() - shown_at) * 1000 < %s)), false)
              WHERE closed_at IS NULL AND {where}
             RETURNING *
             """,
-            (decided_by, decision_id, outcome, FAST_MS, *params),
+            (decided_by, decision_id, outcome, list(NO_BADGE_KINDS), FAST_MS, list(NO_BADGE_KINDS), FAST_NO_BADGE_MS,
+             *params),
         ).fetchall()
 
 

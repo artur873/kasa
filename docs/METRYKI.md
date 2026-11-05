@@ -81,12 +81,19 @@ Zmiany raportu w fazie 5 (`kasa/core/reports/company.py`):
 
 ## 3. Wersjonowanie: zmiana definicji = nowa wersja z testem
 
-* Skrót: `registry.code_hash(cls)` = SHA-256 źródła klasy (i jej klas bazowych z pakietu definicji), funkcji z
-  `uses` i opisu (ziarno, jednostka, wymiary, filtry, pułapki, tryb okresu).
+* Skrót: `registry.code_hash(cls)` (schemat 2, migracja 0014) = SHA-256 źródła klasy (i jej klas bazowych z pakietu
+  definicji), funkcji z `uses`, **całych modułów z `uses_modules`** i opisu (ziarno, jednostka, wymiary, filtry,
+  pułapki, tryb okresu). Marże, wynik firmy, przychód memoriałowy, kontrybucja i pokrycie alokacji deklarują raport
+  firmy i loadery, na których stoją (`kasa/core/reports/company.py`, `kasa/core/allocation/amounts.py`,
+  `objects.py`, `subjects.py`, `kasa/core/cost_objects_discovery/text.py`), należności, zobowiązania, DSO i stan
+  danych - `kasa/core/metrics/state.py`. Zmiana w takim pliku zmienia skrót każdej metryki, która go deklaruje -
+  czyli wymaga jej nowej wersji (przegląd 4C/5, pkt 8). `uses_modules` deklaruje się w jednej linii klasy.
 * `python -m kasa metrics sync` (właściciel; robi to też start serwera MCP i każde żądanie dashboardu) dopisuje do
   `metrics.metric_definition` brakujące (klucz, wersja). Ten sam klucz i wersja z innym skrótem → `DefinitionChanged`:
-  „definicja zmieniona bez nowej wersji”. Baza nie pozwala zmienić wiersza definicji (KS013; jedyna zmiana:
-  `active → deprecated`).
+  „definicja zmieniona bez nowej wersji”. Baza nie pozwala zmienić wiersza definicji (KS013; zmiany dozwolone:
+  `active → deprecated` oraz jedno przejście `hash_scheme` 1 → 2). Wiersz zapisany przed 0014 (`hash_scheme = 1`)
+  `sync` przelicza raz na skrót schematu 2 - tylko gdy skrót schematu 1 (`code_hash_v1`) bieżącego kodu zgadza się z
+  zapisanym (kod się nie zmienił); `verify` do tego czasu sprawdza go schematem 1.
 * `registry.verify` przed każdą odpowiedzią: (klucz, wersja, skrót kodu, który właśnie liczy) musi zgadzać się z
   bazą - inaczej agent i dashboard odmawiają odpowiedzi tą definicją.
 * `definitions.lock.json` w repozytorium: test `tests/metrics/test_registry.py` porównuje skróty bieżącego kodu z
@@ -99,8 +106,14 @@ Zmiany raportu w fazie 5 (`kasa/core/reports/company.py`):
   nie podaje liczby, gdy każdy obiekt odpowiedzi czeka na kartę (`value = null`, „brak liczby”). Stare wersje są w
   kodzie i w bazie jako `deprecated` (`metrics sync` wycofuje starszą wersję, gdy jest nowsza) i odpowiadają tak jak
   wtedy (`get_metric(..., version=1)`), z ostrzeżeniem.
-* Granica skrótu: obejmuje kod definicji i jej pomocników z `uses`, nie wspólne ładowanie faktów
-  (`kasa/core/allocation/amounts.py`, `subjects.py`) - ich zmiany pilnują ich testy i bramki 4-5.
+* Granica skrótu: kod definicji, pomocnicy z `uses` i moduły z `uses_modules`. Czego skrót nie obejmuje (widoki SQL,
+  model danych, niezadeklarowane funkcje) pilnuje **złoty wynik**: `kasa/core/metrics/golden.lock.json` trzyma wynik
+  każdej metryki (każdy klucz@wersja: `value`, udział niepotwierdzonych, `values`, `detail` - bez identyfikatorów,
+  chwil i tekstów `*_pl`, wiersze jako zbiór) na fixtures po symulacji kliknięć; bramka 5
+  (`test_g_every_metric_gives_its_golden_result`) liczy wszystkie i porównuje. Po świadomej zmianie wersji:
+  `python -m kasa metrics golden --write` (buduje bazę fixtures od zera albo `--url` gotowej bazy po kliknięciach;
+  dopisuje nowe wersje, a zmieniony wynik zapisanej wersji odrzuca - chyba że `--force` po świadomej zmianie danych
+  fixtures).
 
 ## 4. Dwie ścieżki, jedna liczba
 
@@ -123,6 +136,7 @@ python -m kasa metrics get margin_accrual --filter cost_object="Gala ACME 2026" 
 python -m kasa metrics get revenue_accrual_net --period 2026-10 --dim cost_object --json
 python -m kasa metrics sync                                   # definicje do bazy (zmiana bez wersji = błąd)
 python -m kasa metrics lock                                   # skróty do definitions.lock.json (tylko nowe wersje)
+python -m kasa metrics golden [--write [--force]] [--url …]  # złoty wynik na fixtures (bez --write: porównaj)
 python -m kasa metrics proposals                              # propozycje metryk od agenta (pytania spoza warstwy)
 ```
 

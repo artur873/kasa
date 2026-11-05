@@ -123,3 +123,84 @@ def test_a_new_version_lives_next_to_the_old_one(conn, make):
     assert old.value == 0 and any("wycofana" in w for w in old.warnings)
     with pytest.raises(MetricError, match="nie pasuje"):
         registry.compute(conn, company, "margin_accrual", filters={"cost_object": "Nie ma"})
+
+
+def test_the_hash_covers_the_whole_shared_modules_of_a_definition(monkeypatch):
+    """Review of 4C/5, point 8: the company report and the allocation loaders are part of the margin's code -
+    a change there needs a new version (scheme 2 of the hash); a metric without shared modules hashes as before."""
+    import inspect
+
+    import kasa.core.allocation.subjects as subjects
+    import kasa.core.reports.company as company
+
+    margin = registry.latest("margin_accrual")
+    assert {"kasa.core.reports.company", "kasa.core.allocation.amounts", "kasa.core.allocation.objects",
+            "kasa.core.allocation.subjects"} <= set(margin.uses_modules)
+    assert any("def company_report" in source for source in registry.module_sources(margin))
+    assert registry.describe(margin)["uses_modules"] and registry.describe(margin)["hash_scheme"] == 2
+    before, before_v1 = registry.code_hash(margin), registry.code_hash_v1(margin)
+    real = inspect.getsource
+    for module in (company, subjects):
+        monkeypatch.setattr(registry.inspect, "getsource",
+                            lambda obj, m=module: real(obj) + "\n# zmiana loadera" if obj is m else real(obj))
+        assert registry.code_hash(margin) != before, module.__name__
+        assert registry.code_hash_v1(margin) == before_v1           # scheme 1 did not see the loaders
+    monkeypatch.setattr(registry.inspect, "getsource", real)
+    cash = registry.latest("cash_flow")
+    assert not cash.uses_modules and registry.code_hash(cash) == registry.code_hash_v1(cash)
+
+
+def test_a_definition_of_scheme_1_is_rehashed_once_and_only_with_the_same_code(conn):
+    margin = registry.get("margin_accrual", 3)
+    dso = registry.get("dso_90", 1)
+    for cls, digest in ((margin, registry.code_hash_v1(margin)), (dso, "e" * 64)):
+        conn.execute(
+            """
+            INSERT INTO metrics.metric_definition (key, version, name_pl, description_pl, grain, unit, implementation,
+                                                   code_sha256, hash_scheme)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 1)
+            """,
+            (cls.key, cls.version, cls.name_pl, cls.description_pl, cls.grain, cls.unit, cls.implementation(), digest))
+    # dso_90@1 recorded under scheme 1 with another code: a change without a new version
+    with pytest.raises(DefinitionChanged, match="dso_90@1"), conn.transaction():
+        registry.sync_definitions(conn, refresh_views=False)
+    with pytest.raises(psycopg.Error) as err, conn.transaction():
+        conn.execute("UPDATE metrics.metric_definition SET code_sha256 = %s, hash_scheme = 2 WHERE key = 'dso_90'",
+                     (registry.code_hash(dso),))
+        conn.execute("UPDATE metrics.metric_definition SET code_sha256 = repeat('a', 64) WHERE key = 'dso_90'")
+    assert err.value.sqlstate == "KS013"                            # after the one re-hash nothing changes
+    conn.execute("UPDATE metrics.metric_definition SET code_sha256 = %s, hash_scheme = 2 WHERE key = 'dso_90'",
+                 (registry.code_hash(dso),))                       # (the test's own repair of the row)
+    report = registry.sync_definitions(conn, refresh_views=False)
+    assert report["rehashed"] == ["margin_accrual@3"]
+    assert conn.execute("SELECT code_sha256, hash_scheme FROM metrics.metric_definition WHERE key = 'margin_accrual' "
+                        "AND version = 3").fetchone() == (registry.code_hash(margin), 2)
+    assert registry.sync_definitions(conn, refresh_views=False)["rehashed"] == []
+    with pytest.raises(psycopg.Error) as err, conn.transaction():
+        conn.execute("UPDATE metrics.metric_definition SET hash_scheme = 1 WHERE key = 'margin_accrual' AND version = 3")
+    assert err.value.sqlstate in ("KS013", "23514")
+
+
+def test_golden_command_compares_and_refuses_to_hide_a_changed_number(clicked_url, capsys, monkeypatch, tmp_path):
+    """``metrics golden`` (review of 4C/5, point 8): equal on the clicked fixtures; ``--write`` adds new versions but
+    refuses a changed number of a recorded version unless ``--force``."""
+    import json
+
+    from kasa.__main__ import main
+    from kasa.core.metrics import golden
+
+    assert main(["metrics", "golden", "--url", clicked_url]) == 0
+    assert "zgodny" in capsys.readouterr().out
+    recorded = golden.read_golden()
+    changed = {**recorded, "dso_90@1": {**recorded["dso_90@1"], "value": 1.0}}
+    del changed["queue_state@1"]
+    copy = tmp_path / "golden.lock.json"
+    copy.write_text(json.dumps(changed), encoding="utf-8")
+    monkeypatch.setattr(golden, "GOLDEN_FILE", copy)
+    assert main(["metrics", "golden", "--url", clicked_url]) == 1
+    out = capsys.readouterr().out
+    assert "dso_90@1: inny wynik" in out and "queue_state@1: brak złotego wyniku" in out
+    assert main(["metrics", "golden", "--url", clicked_url, "--write"]) == 1          # a change without a version
+    assert json.loads(copy.read_text(encoding="utf-8"))["dso_90@1"]["value"] == 1.0
+    assert main(["metrics", "golden", "--url", clicked_url, "--write", "--force"]) == 0
+    assert json.loads(copy.read_text(encoding="utf-8")) == recorded

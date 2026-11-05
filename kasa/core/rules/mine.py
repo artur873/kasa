@@ -4,7 +4,10 @@ Evidence is ONLY:
 * decisions of a person in force (``method = 'human'``, not revoked) - categories, "no document"
   subtypes, allocations, matches;
 * for match strategies also matches that rest on a hard identifier in the title (KSeF number, MPP block,
-  invoice number) - the identifier is the evidence, not the automation's decision;
+  invoice number) - the identifier is the evidence, not the automation's decision: a decision of the
+  automation counts ONLY when the identifiers of the title decide the group by themselves (every number of
+  the title names exactly one document, and those are exactly the documents of the decision -
+  ``title_resolves``; review of 4C/5, point 3); otherwise it is skipped;
 never a decision of the automation alone (the system must not confirm itself).
 
 Patterns (each per canonical counterparty, ``kasa.core.rules.facts``):
@@ -242,6 +245,66 @@ def _title_token(title: str, name: str | None) -> str | None:
     return None
 
 
+def _one_document(conn: psycopg.Connection, company_id: UUID, direction: str, where: str,
+                  params: tuple) -> UUID | None:
+    rows = conn.execute(
+        f"""
+        SELECT DISTINCT l.head_id FROM l1_document d JOIN document_lineage l ON l.document_id = d.id
+         WHERE d.company_id = %s AND d.direction = %s AND d.superseded_by IS NULL AND ({where})
+        """,
+        (company_id, direction, *params),
+    ).fetchall()
+    return rows[0][0] if len(rows) == 1 else None
+
+
+def title_resolves(conn: psycopg.Connection, company_id: UUID, transaction_id: UUID, documents: list[Any]) -> bool:
+    """The identifiers written in the title (read by code: KSeF numbers, the MPP block, invoice numbers) decide
+    the group by themselves: each names exactly one current document of the company in the direction of the
+    transfer, and together they are exactly the documents of the decision (compared as chains of versions).
+
+    Only then is an automatic match evidence for mining - the identifier is the evidence, the automation's
+    choice is not (a title with a number of another invoice, a number shared by two documents, a number that
+    names fewer documents than the decision settled: skipped). Review of 4C/5, point 3."""
+    row = conn.execute("SELECT amount_minor, extracted FROM l1_bank_transaction WHERE id = %s",
+                       (transaction_id,)).fetchone()
+    if row is None or not documents:
+        return False
+    direction = "sales" if int(row[0]) > 0 else "purchase"
+    extracted = row[1] or {}
+    named: set[UUID] = set()
+    identifiers = 0
+    for item in extracted.get("ksef_numbers") or []:
+        if not item.get("number") or not item.get("checksum_ok", True):
+            return False
+        doc = _one_document(conn, company_id, direction, "d.ksef_number = %s", (item["number"],))
+        if doc is None:
+            return False
+        named.add(doc)
+        identifiers += 1
+    mpp = extracted.get("mpp") or {}
+    if mpp.get("inv_normalized"):
+        doc = _one_document(conn, company_id, direction,
+                            "d.number_normalized = %s AND (%s::text IS NULL OR d.seller_nip = %s::text)",
+                            (mpp["inv_normalized"], mpp.get("idc_nip"), mpp.get("idc_nip")))
+        if doc is None:
+            return False
+        named.add(doc)
+        identifiers += 1
+    for item in extracted.get("invoice_numbers") or []:
+        forms = [f for f in [item.get("normalized"), *(item.get("alt") or [])] if f]
+        doc = _one_document(conn, company_id, direction, "d.number_normalized = ANY(%s)", (forms,)) if forms else None
+        if doc is None:
+            return False
+        named.add(doc)
+        identifiers += 1
+    if not identifiers:
+        return False
+    heads = {r[0] for r in conn.execute(
+        "SELECT DISTINCT head_id FROM document_lineage WHERE document_id = ANY(%s::uuid[])",
+        ([str(d) for d in documents],)).fetchall()}
+    return named == heads
+
+
 def _match_cases(conn: psycopg.Connection, company_id: UUID, cache: dict, only: set[UUID] | None) -> list[Case]:
     rows = conn.execute(
         """
@@ -264,6 +327,8 @@ def _match_cases(conn: psycopg.Connection, company_id: UUID, cache: dict, only: 
         documents = [i["document_id"] for i in payload.get("items") or [] if i.get("document_id")]
         if not documents:
             continue
+        if method != "human" and not title_resolves(conn, company_id, tx, documents):
+            continue                    # the automation chose more than the title says: not evidence
         source = "human" if method == "human" else "hard_identifier"
         bulk = len(documents) >= 2
         case = _case(conn, cache, company_id, "monthly_bulk", "transaction", tx, "bulk" if bulk else "single",

@@ -79,3 +79,12 @@ Drobne: 12. Revolut: waga nazwy klienta z tytułu za niska, brak `payer_hint`. 1
 Blokujące: 1. `/api/queue` lista zdradza `card_kind='sentinel'` → mapować przez SHOWN_KIND, nigdy `sentinel_id`. 2. `kasa_anonymize_persons` pomija `queue_state.rank_reason`, `l1_document_observation.observed`, wszystkie wersje `l1_counterparty` (ibans, evidence) → objąć + test „pg_dump | grep pii = 0”.
 Ważne: 3. `rules/mine.py` liczy przypadki z decyzji automatu (source hard_identifier) → tylko gdy identyfikator w tytule sam rozstrzyga grupę. 4. sugestia agenta przyjęta w kolejce = dowód reguły bez oznaczenia → etykieta „od agenta”, `source` w obserwacji. 5. wartownicy z przelewów zamkniętych przez automat widoczni w historii → tylko ze starszych decyzji człowieka, ukryte w historii. 6. karta audytu bez dowodów i alternatyw z chwili decyzji. 7. rola suggest może wstawić sugestię z `hard=true`/score 1 → trigger wymuszający source='agent', method='model', hard=false; filtr `source<>'agent'` w rules/auto i allocation/auto. 8. skrót definicji metryki bez wspólnych loaderów → moduły w skrócie + złoty wynik na fixtures. 9. remis między kontrahentami o tej samej nazwie: pusta lista → tie z evidence.detail. 10. pseudonimizacja wyjścia agenta tylko dla znanych kluczy → rekurencyjnie każdy string. 
 Drobne: 11. „Symuluj” na karcie reguły. 12. alarm 0,8 s tylko dla badge low → także karty bez odznaki < 1,5 s. 13. `statement_timeout` na roli nie działa przy SET ROLE → SET LOCAL w każdej transakcji + test. 14. `min_months` dostępne w API panelu → tylko CLI. 15. szkic przypomnienia dla osoby z kodem P-xxxx: odwrócenie w panelu, nie w MCP.
+
+Status (5.11.2026, migracja `0014_review_fixes.sql`): wykonane pkt 1, 2, 3, 5, 6, 7, 8, 10, 12, 13, 14 (opis:
+`docs/KOLEJKA.md` rozdz. 6, `docs/REGULY.md` rozdz. 4/7/8, `docs/AGENT.md` rozdz. 2, `docs/METRYKI.md` rozdz. 3,
+`docs/SCHEMAT.md` - 0014). Testy: `tests/metrics/test_anonymization_dump.py` (pg_dump po `retention anonymize
+--shred` bez danych osób z `pii`, L0 włącznie), `tests/queue/test_web.py` (API/HTML bez „sentinel”/„wartownik”),
+`tests/queue/test_build.py` (wartownicy tylko z decyzji człowieka > 7 dni), `tests/rules/test_mine_evidence.py`,
+`tests/rules/test_audit.py` (karta audytu, alarm 1,5 s), `tests/metrics/test_roles.py` (trigger roli suggest, `SET
+LOCAL statement_timeout`), `tests/metrics/test_registry.py` (moduły w skrócie, schemat 2), bramka 5 (g) złoty wynik,
+`tests/agent/test_server.py` (każdy string przez bramkę). Otwarte: 4, 9, 11, 15.

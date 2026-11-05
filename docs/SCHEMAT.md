@@ -1,6 +1,7 @@
 # Schemat bazy (fazy 1-5)
 
-Migracje: `migrations/0001_core.sql` … `0011_phase4_queue_rules.sql`, `0012_phase5_metrics.sql` (faza 5) i `0013_matching_fixes.sql`,
+Migracje: `migrations/0001_core.sql` … `0011_phase4_queue_rules.sql`, `0012_phase5_metrics.sql` (faza 5), `0013_matching_fixes.sql`
+i `0014_review_fixes.sql` (poprawki przeglądu faz 4C i 5),
 stosowane przez `python -m kasa migrate` w kolejności numerów; brakujący wcześniejszy numer zastosowany później
 nie przeszkadza (0013 nie zależy od 0012) (każdy plik w osobnej transakcji, zapis w `schema_migrations` z sumą
 SHA-256; zmiana zastosowanego pliku = błąd).
@@ -217,3 +218,19 @@ Opis: `docs/METRYKI.md`, `docs/AGENT.md`, `docs/DASHBOARD.md`.
 Nowe kody strażników: `KS013` definicja metryki niezmienna, `KS014` surowa kolumna osoby albo wejście modelu zmienione
 poza funkcją retencji. `python -m kasa check` sprawdza triggery 0012, role agenta i ostrzega o tekstach modelu po
 90 dniach (`kasa/core/checks.py`, dopisane na końcu); `python -m kasa retention run` je wygasza.
+
+## Poprawki przeglądu faz 4C i 5 (`0014_review_fixes.sql`)
+
+Opis: `docs/KOLEJKA.md` (rozdz. 6), `docs/REGULY.md` (rozdz. 4, 7, 8), `docs/AGENT.md` (rozdz. 2),
+`docs/METRYKI.md` (rozdz. 3), lista znalezisk: `docs/PRZEGLADY.md`, „Fazy 4C i 5”.
+
+| Obiekt | Co to jest |
+| --- | --- |
+| trigger `l2_suggestion_agent_guard` (`kasa_agent_suggestion_guard()`, `kasa_is_agent_suggest_role()`) | Wiersz `l2_suggestion` zapisany jako `kasa_agent_suggest` (albo rola logowania, która ją dziedziczy; nigdy superużytkownik) jest zawsze słabą propozycją modelu: `source = 'agent'`, `method = 'model'`, `status = open`, `rank` NULL, `score` i `confidence` ≤ 0,9, `evidence.hard = false`, `auto_eligible = false`, bez `evidence.rule`, odznaka `low`, `precedents` 0, `tags = [agent]` (pkt 7). |
+| `kasa_anonymize_persons(firma, przed, aktor, powód, klucze osoby, klucze do usunięcia, p_purge_raw)` | Zastępuje wersję z 0012 (nowy parametr `p_purge_raw`, CLI `--shred`). Poza kolumnami z 0012: **wszystkie wersje** kontrahenta-osoby (łańcuch `superseded_by`: `name`, `name_key`, `ibans`, `evidence` - bank_name/IBAN), `l1_document_observation.observed` dokumentów osób, `evidence` faktów L1 (np. nazwa pliku załącznika), teksty pochodne rekordów sprzed daty (`queue_state.rank_reason`, `l2_suggestion.proposal`/`evidence`, `l3_decision_log.payload`/`evidence`/`reason`, `l3_rule.question`/`exceptions`/`evidence`/`post_mortem`/`suspended_reason`, `evidence` L3, etykiety zbiorów kontrolnych i ich historia), metadane plików L0 (nadawca e-maila, nazwa załącznika), payloady modelu sprzed daty (wygaszone jak `kasa_expire_llm_payloads`), a z `p_purge_raw` - treść plików źródłowych z osobami, których wszystkie rekordy są sprzed daty (`kasa_purge_raw`, wpis w `l0_purge_log`). Teksty pochodne przepisuje mapa zbudowana z surowych wartości przed ich nadpisaniem: pełne nazwy → pseudonim, IBAN-y (także bez „PL” i w grupach) → pseudonim albo `[IBAN]`, telefony → pseudonim, potem każde słowo nazwy osoby (min. 3 litery, którego pseudonim nie zachowuje, bez względu na wielkość liter i polskie znaki) → `[osoba]`. `counts` w `anonymization_log` ma klucz dla każdej tabeli. |
+| `kasa_anonymization_open(firma)`, `kasa_anon_apply(tekst)`, `kasa_anon_jsonb(j)`, `kasa_anon_letters/word_pattern/name_pattern/digits_pattern` | Okno anonimizacji (flaga `kasa.anonymize` + wpis w `anonymization_log` tej transakcji) i mapa tekstów (tabele tymczasowe `pg_temp._kasa_anon_*`; bez mapy funkcje nic nie zmieniają; `EXECUTE` odebrane `PUBLIC`). |
+| strażniki w oknie anonimizacji | `kasa_l3_guard` (L3: tylko kolumny tekstowe), `l3_decision_log_append_only` (`kasa_decision_log_append_only()`: `payload`, `evidence`, `reason`), `kasa_control_set_item_guard` (etykieta bez wpisu historii), `control_set_label_history_append_only` (`kasa_label_history_append_only()`), `kasa_l0_raw_guard` (L0: tylko `meta`; treść tylko przez `kasa_purge_raw`), nowy `l1_document_observation_raw_person_guard` (`observed` jak inne surowe kolumny - KS014). Poza oknem wszystko jak wcześniej. |
+| `metrics.metric_definition.hash_scheme` | Schemat `code_sha256`: 1 (do 0014: klasa + `uses`), 2 (także całe moduły `uses_modules`). Strażnik KS013 dopuszcza jedno przejście 1 → 2 (tylko `code_sha256` i `hash_scheme`); robi je `metrics sync` po sprawdzeniu skrótu schematu 1. |
+| `evidence.queue_state` (przebudowane `kasa_refresh_agent_views()`) | Bez otwartych kart `sentinel`, `sentinel_id` zawsze NULL - czekający wartownik jest dla agenta niewidoczny (pkt 5). |
+
+`python -m kasa check` sprawdza też triggery 0014 (`kasa/core/checks.py`, dopisane na końcu).

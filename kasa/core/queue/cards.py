@@ -10,7 +10,8 @@
 * a homogeneous batch (same rule/tag, same counterparty, all high) is offered as one button,
   every item still its own decision;
 * cards of a cost object candidate, of a rule candidate, of a rule ready for auto and of an audit
-  sample ("audyt");
+  sample ("audyt": the automatic decision with its evidence and the other proposals of the moment of the
+  decision - review of 4C/5, point 6);
 * a sentinel looks exactly like a match card (nothing tells it apart).
 """
 
@@ -340,27 +341,56 @@ def card(conn: psycopg.Connection, item: dict[str, Any]) -> dict[str, Any]:
 
 
 def _audit(conn: psycopg.Connection, item: dict[str, Any]) -> dict[str, Any]:
-    row = conn.execute(
-        """
-        SELECT s.month, d.kind::text, d.payload, d.decided_by, d.decided_at, d.suggestion_id, r.rule_key
-          FROM l2_audit_sample s JOIN l3_decision_log d ON d.id = s.decision_id
-          LEFT JOIN l3_rule r ON r.id = s.rule_id WHERE s.id = %s
-        """,
-        (item["audit_sample_id"],),
-    ).fetchone()
-    if row is None:
-        return {}
-    month, kind, payload, decided_by, decided_at, suggestion_id, rule_key = row
-    facts: list[str] = []
-    if suggestion_id:
-        evidence = conn.execute("SELECT evidence FROM l2_suggestion WHERE id = %s", (suggestion_id,)).fetchone()
-        facts = list(((evidence[0] if evidence else None) or {}).get("facts") or [])
-    label = proposal_label(conn, kind if kind in ("match", "allocation", "category") else "other", payload or {}, {})
+    """The automatic decision under audit as it was decided (review of 4C/5, point 6): its evidence in facts
+    from the moment of the decision (``l3_decision_log.evidence.facts``, else the accepted suggestion's), the
+    badge, and every other proposal the automation had then (suggestions it rejected with
+    ``resolved_by_decision`` = this decision) - the person judges the choice, not only its result."""
+    with conn.cursor(row_factory=dict_row) as cur:
+        row = cur.execute(
+            """
+            SELECT s.month, d.id AS decision_id, d.kind::text AS kind, d.payload, d.decided_by, d.decided_at,
+                   d.suggestion_id, d.evidence, r.rule_key, r.question, r.evidence_count
+              FROM l2_audit_sample s JOIN l3_decision_log d ON d.id = s.decision_id
+              LEFT JOIN l3_rule r ON r.id = s.rule_id WHERE s.id = %s
+            """,
+            (item["audit_sample_id"],),
+        ).fetchone()
+        if row is None:
+            return {}
+        chosen = cur.execute("SELECT proposal, evidence, rank FROM l2_suggestion WHERE id = %s",
+                             (row["suggestion_id"],)).fetchone() if row["suggestion_id"] else None
+        others = cur.execute(
+            """
+            SELECT id, kind::text AS kind, proposal, evidence, rank FROM l2_suggestion
+             WHERE resolved_by_decision = %s AND status = 'rejected' AND id IS DISTINCT FROM %s
+             ORDER BY rank NULLS LAST, created_at, id
+            """,
+            (row["decision_id"], row["suggestion_id"]),
+        ).fetchall()
+    kind, payload = row["kind"], row["payload"] or {}
+    decided = row["evidence"] or {}
+    chosen_evidence = (chosen or {}).get("evidence") or {}
+    facts = list(decided.get("facts") or chosen_evidence.get("facts") or [])
+    if not facts and row["rule_key"]:
+        facts = [f"reguła {row['rule_key']}" + (f": {row['question']}" if row["question"] else ""),
+                 f"{int(row['evidence_count'] or 0)} zgodnych decyzji człowieka przed włączeniem auto"]
+    label = proposal_label(conn, kind if kind in ("match", "allocation", "category") else "other", payload,
+                           chosen_evidence)
     if kind == "allocation":
         names = {str(r[0]): r[1] for r in conn.execute(
             "SELECT id, name FROM l3_cost_object WHERE id = ANY(%s::uuid[])",
-            ([s["cost_object_id"] for s in (payload or {}).get("shares") or []],)).fetchall()}
+            ([s["cost_object_id"] for s in payload.get("shares") or []],)).fetchall()}
         label = " · ".join(f"{names.get(s['cost_object_id'], '?')} {round(float(s['share']) * 100, 2):g}%"
-                           for s in (payload or {}).get("shares") or [])
-    return {"month": month, "kind": kind, "decision": label, "decided_by": decided_by, "decided_at": decided_at,
-            "rule_key": rule_key, "facts": facts, "sample_id": str(item["audit_sample_id"])}
+                           for s in payload.get("shares") or [])
+    badge = chosen_evidence.get("badge")
+    alternatives = []
+    for other in others:
+        evidence = other["evidence"] or {}
+        alternatives.append({"suggestion_id": str(other["id"]), "rank": other["rank"],
+                             "label": proposal_label(conn, other["kind"], other["proposal"] or {}, evidence),
+                             "facts": list(evidence.get("facts") or []), "badge": evidence.get("badge"),
+                             "badge_pl": BADGE_PL.get(evidence.get("badge"), "-")})
+    return {"month": row["month"], "kind": kind, "decision": label, "decided_by": row["decided_by"],
+            "decided_at": row["decided_at"], "rule_key": row["rule_key"], "facts": facts, "badge": badge,
+            "badge_pl": BADGE_PL.get(badge, "-"), "precedents": int(chosen_evidence.get("precedents") or 0),
+            "alternatives": alternatives, "sample_id": str(item["audit_sample_id"])}

@@ -159,3 +159,77 @@ def test_the_agent_session_is_the_read_only_role_with_the_timeout(clicked_url):
     with db.suggest() as conn:
         assert conn.execute("SELECT current_user, current_setting('statement_timeout')").fetchone() == (
             "kasa_agent_suggest", "15s")
+
+
+def test_suggestion_role_writes_only_weak_proposals_and_the_automation_skips_them(mconn, modm):
+    """Review of 4C/5, point 7: the role could insert hard = true / score 1 / rank 1 / accepted - the database
+    turns every row of the agent into a weak open proposal of a model, and the automation skips source 'agent'."""
+    from kasa.core.allocation.auto import run_auto
+
+    subject_type, subject_id = mconn.execute(
+        "SELECT subject_type::text, subject_id FROM l2_suggestion WHERE company_id = %s AND kind = 'allocation' "
+        "AND status = 'open' AND subject_id IS NOT NULL LIMIT 1", (modm.id,)).fetchone()
+    target = mconn.execute("SELECT id FROM l3_cost_object WHERE company_id = %s AND status = 'approved' "
+                           "AND system_code IS NULL LIMIT 1", (modm.id,)).fetchone()[0]
+    rule = mconn.execute("SELECT id, version FROM l3_rule WHERE company_id = %s AND stage = 'auto' LIMIT 1",
+                         (modm.id,)).fetchone()
+    sid = uuid.uuid4()
+    mconn.execute("SET LOCAL ROLE kasa_agent_suggest")
+    mconn.execute(
+        """
+        INSERT INTO l2_suggestion (id, company_id, kind, subject_type, subject_id, proposal, score, rank, status,
+                                   resolved_at, source, method, confidence, evidence, prompt_version, created_by)
+        VALUES (%s, %s, 'allocation', %s, %s, %s, 1.0, 1, 'accepted', now(), 'kasa.allocation', 'code', 1.0, %s,
+                'agent-v1', 'agent:test')
+        """,
+        (sid, modm.id, subject_type, subject_id,
+         json.dumps({"shares": [{"cost_object_id": str(target), "share": 1, "share_exact": "1"}]}),
+         json.dumps({"hard": True, "auto_eligible": True, "badge": "high", "precedents": 99, "tags": ["ksef_number"],
+                     "rule": {"rule_id": str(rule[0]), "version": rule[1], "rule_key": "R-x"}, "facts": ["x"]})))
+    mconn.execute("RESET ROLE")
+    row = mconn.execute("SELECT source, method::text, status::text, rank, score, confidence, evidence, resolved_at "
+                        "FROM l2_suggestion WHERE id = %s", (sid,)).fetchone()
+    source, method, status, rank, score, confidence, evidence, resolved = row
+    assert (source, method, status, rank, resolved) == ("agent", "model", "open", None, None)
+    assert float(score) <= 0.9 and float(confidence) <= 0.9
+    assert evidence["hard"] is False and evidence["auto_eligible"] is False and "rule" not in evidence
+    assert evidence["badge"] == "low" and evidence["precedents"] == 0 and evidence["tags"] == ["agent"]
+    assert evidence["facts"] == ["x"]                                   # the rest of the proposal stays
+    # even if a bug of the server put it at rank 1 with auto_eligible (as the owner): the automation skips it
+    mconn.execute("UPDATE l2_suggestion SET rank = 1, evidence = evidence || '{\"auto_eligible\": true}' "
+                  "WHERE id = %s", (sid,))
+    report = run_auto(mconn, modm)
+    assert str(sid) not in {f["suggestion_id"] for f in report.failed}
+    assert mconn.execute("SELECT status::text FROM l2_suggestion WHERE id = %s", (sid,)).fetchone() == ("open",)
+    assert mconn.execute("SELECT count(*) FROM l3_allocation WHERE subject_id = %s AND status = 'active'",
+                         (subject_id,)).fetchone() == (0,)
+
+
+def test_the_agent_session_sets_the_timeout_in_every_transaction(clicked_url):
+    """Review of 4C/5, point 13: ``ALTER ROLE ... SET statement_timeout`` does not apply after ``SET ROLE`` -
+    every transaction of the agent starts with ``SET LOCAL statement_timeout = '15s'``."""
+    import time
+
+    from kasa.core.agent.db import AgentDatabase
+
+    class NoSessionLimit(AgentDatabase):
+        """A session where the limit of the role / of the session does not hold (as after SET ROLE)."""
+
+        def _session(self, url, role, search_path):
+            conn = super()._session(url, role, search_path)
+            conn.autocommit = True
+            conn.execute("SET statement_timeout = 0")
+            conn.autocommit = False
+            return conn
+
+    db = NoSessionLimit(url=clicked_url, company_slug="odm")
+    with db.suggest() as conn:
+        assert conn.execute("SELECT current_setting('statement_timeout')").fetchone() == ("15s",)
+    with db.ro() as conn:
+        # the transaction's own SET LOCAL holds
+        assert conn.execute("SELECT current_user, current_setting('statement_timeout')").fetchone() == (
+            "kasa_agent_ro", "15s")
+        started = time.monotonic()
+        with pytest.raises(psycopg.errors.QueryCanceled):
+            conn.execute("SELECT pg_sleep(20)")
+        assert time.monotonic() - started < 20

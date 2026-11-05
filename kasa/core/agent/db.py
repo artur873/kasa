@@ -3,6 +3,8 @@
 * ``ro()`` - role ``kasa_agent_ro``: SELECT only on ``metrics``, ``views``, ``evidence``; read-only
   transaction; ``statement_timeout`` 15 s; ``search_path = evidence, views, metrics, public`` (the shared
   metric code reads the per-company mirrors); the company = ``kasa.company_id``. Every read of every tool.
+  The timeout of the ROLE (``ALTER ROLE ... SET``) applies only at login, never after ``SET ROLE``: every
+  transaction of both sessions starts with ``SET LOCAL statement_timeout = '15s'`` (review of 4C/5, point 13).
 * ``suggest()`` - role ``kasa_agent_suggest``: INSERT only on ``l2_suggestion``, ``metric_proposal`` and
   ``agent_call_log``. The five "propose" tools, the call log, metric proposals.
 * ``gate()`` - the owner role, used ONLY by the pseudonymization gate (``kasa.core.pseudonym``: the key
@@ -72,11 +74,17 @@ class AgentDatabase:
         conn.autocommit = False
         return conn
 
+    @staticmethod
+    def begin(conn: psycopg.Connection) -> None:
+        """Open the transaction with the agent's limit (a statement over 15 s is cancelled)."""
+        conn.execute(f"SET LOCAL statement_timeout = '{STATEMENT_TIMEOUT}'")
+
     @contextmanager
     def ro(self) -> Iterator[psycopg.Connection]:
         conn = self._session(self.ro_url, RO_ROLE, RO_SEARCH_PATH)
         conn.read_only = True
         try:
+            self.begin(conn)
             yield conn
         finally:
             conn.rollback()
@@ -86,6 +94,7 @@ class AgentDatabase:
     def suggest(self) -> Iterator[psycopg.Connection]:
         conn = self._session(self.suggest_url, SUGGEST_ROLE, "public")
         try:
+            self.begin(conn)
             yield conn
             conn.commit()
         except Exception:

@@ -34,6 +34,7 @@ class DataState(Metric):
     traps_pl = ("Dane „na dzień” to ostatni dzień wyciągu, nie dzisiejsza data.",
                 "Okres bez policzonych kontroli prawdy to ostrzeżenie, nie zielone światło.")
     uses = (data_state,)
+    uses_modules = ("kasa.core.metrics.state",)
 
     def compute(self, ctx: MetricContext, *, period: Period | None, as_of: date | None, dimensions: list[str],
                 filters: dict[str, Any]) -> Computed:

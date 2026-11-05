@@ -198,3 +198,39 @@ def test_every_call_is_logged_append_only(client, owner):
     assert owner.execute("SELECT count(*) FROM agent_call_log").fetchone()[0] == before + 3
     with pytest.raises(Exception):
         owner.execute("UPDATE agent_call_log SET tool = 'x'")
+
+
+def test_every_string_of_a_result_goes_through_the_gate_whatever_its_key(client, agent, monkeypatch):
+    """Review of 4C/5, point 10: the gate pseudonymized only the values of known keys - a reason of a decision
+    (or any text) under another key, at any depth, left kasa as it was. Now every string goes through it."""
+    person = truth()["pii"]["persons"][0]
+    reason = f"zwrot zaliczki dla {person['name']}, tel. {person['phone_formats'][0]}, konto {person['iban']}"
+
+    def explain_with_reasons(subject_type: str, subject_id: str) -> dict:
+        return {"subject": {"type": subject_type, "id": subject_id},
+                "4_decisions": [{"decision_id": "00000000-0000-0000-0000-000000000001", "kind": "match",
+                                 "reason": reason, "uzasadnienie_decyzji": reason, "decided_by": person["name"],
+                                 "amount_pl": f"{person['name']} 120,00 zł",
+                                 "status": person["name"].split()[-1]}],
+                "notatki": [[reason]], person["name"]: "klucz z danymi"}
+
+    monkeypatch.setattr(agent.tools, "explain_fact", explain_with_reasons)
+    result = client.call("explain_fact", subject_type="transaction", subject_id="x")
+    text = json.dumps(result, ensure_ascii=False)
+    words = set(re.findall(r"[^\W\d_]+", fold(text)))
+    assert fold(person["name"].split()[-1]) not in words, text
+    assert re.sub(r"\D", "", person["phone"]) not in re.sub(r"\D", "", text)
+    assert person["iban"] not in text and person["iban"][2:] not in re.sub(r"\s", "", text)
+    assert "P-" in text and result["4_decisions"][0]["decision_id"].endswith("0001")      # ids stay as they are
+
+
+def test_outbound_skips_only_strings_that_cannot_name_a_person():
+    from kasa.core.agent.outbound import Outbound
+
+    for safe in ("5f0c0f3e-8a4f-4f53-9d0e-6c3a3f0b2a11", "2026-10-31", "2026-10-31T09:00:00+00:00", "1 234,56 zł",
+                 "30,0%", "P-436a", "receivables_open@1", "12345"):
+        assert Outbound.safe(safe), safe
+    assert Outbound.safe("matched", "final_status")
+    for data in ("Anna Mazur", "500 975 639", "500975639", "PL10114958040940956375786126", "anna mazur"):
+        assert not Outbound.safe(data), data
+    assert not Outbound.safe("Anna Mazur", "final_status")          # a "safe" key does not excuse a data text

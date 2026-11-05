@@ -388,12 +388,13 @@ _PESEL_RE = re.compile(r"(?<!\d)(\d{11})(?!\d)")
 _PHONE_RES = (
     # +48 500 085 853 / 0048-500-085-853 / (+48) 500085853
     re.compile(r"(?<![\d+])(?:\(?(?:\+|00)48\)?[ -]?)(\d{3})([ -]?)(\d{3})\2(\d{3})(?![\d/])"),
-    # 500 085 853 / 500-085-853
-    re.compile(r"(?<![\d/.,])([1-9]\d{2})([ -])(\d{3})\2(\d{3})(?![\d/,]|\.\d)"),
+    # 500 085 853 / 500-085-853 (a comma after the number ends it: "tel. 500 085 853, konto ..."; a decimal
+    # comma - "500 085 853,00" - is an amount)
+    re.compile(r"(?<![\d/.,])([1-9]\d{2})([ -])(\d{3})\2(\d{3})(?![\d/]|[.,]\d)"),
     # 500085853 (mobile prefixes only, to spare invoice numbers)
-    re.compile(r"(?<![\d/.,A-Za-z-])([4-8]\d{8})(?![\d/,A-Za-z]|\.\d|-\d)"),
+    re.compile(r"(?<![\d/.,A-Za-z-])([4-8]\d{8})(?![\d/A-Za-z]|[.,]\d|-\d)"),
     # landline 22 123 45 67
-    re.compile(r"(?<![\d/.,])(\d{2}) (\d{3}) (\d{2}) (\d{2})(?![\d/,]|\.\d)"),
+    re.compile(r"(?<![\d/.,])(\d{2}) (\d{3}) (\d{2}) (\d{2})(?![\d/]|[.,]\d)"),
 )
 _ADDRESS_RE = re.compile(
     r"\b(?:ul\.|ulica|ulicy|al\.|aleja|alei|aleje|pl\.|plac|placu|os\.|osiedle)\s*"

@@ -7,7 +7,8 @@ of the counterparty in stage ``auto`` (4C, ``kasa.core.rules``). A row of an int
 hard evidence only when the extension says so (``allocation.internal_record_is_hard``, off by
 default - decision D2). Every write is ``method = 'rule'`` signed with the rule and its version:
 ``builtin:allocation_explicit_identifier`` (seeded by migration 0010, stage auto, the user may
-suspend it - then nothing is automatic) or the learned rule itself.
+suspend it - then nothing is automatic) or the learned rule itself. A suggestion of the agent
+(``source = 'agent'``) is never applied, whatever its evidence says (review of 4C/5, point 7).
 """
 
 from __future__ import annotations
@@ -53,6 +54,7 @@ def run_auto(conn: psycopg.Connection, company: Any) -> AutoReport:
         """
         SELECT s.id, s.evidence FROM l2_suggestion s
          WHERE s.company_id = %s AND s.kind = 'allocation' AND s.status = 'open' AND s.rank = 1
+           AND s.source <> 'agent'                -- a proposal of the agent is never applied by the automation
            AND (s.evidence ->> 'auto_eligible')::boolean
            AND NOT EXISTS (SELECT 1 FROM l3_allocation a WHERE a.subject_type = s.subject_type
                              AND a.subject_id = s.subject_id AND a.status = 'active')

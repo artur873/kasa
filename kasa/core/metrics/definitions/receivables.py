@@ -184,6 +184,7 @@ class _OpenDocuments(Metric):
                "issue_month": "miesiąc wystawienia RRRR-MM"}
     direction = "sales"
     uses = (open_documents, bucket_of, _pln)
+    uses_modules = ("kasa.core.metrics.state",)
 
     def compute(self, ctx: MetricContext, *, period: Period | None, as_of: date | None, dimensions: list[str],
                 filters: dict[str, Any]) -> Computed:
@@ -282,6 +283,7 @@ class Dso90(Metric):
     traps_pl = ("Jedna definicja, jedna wersja: sprzedaż = brutto faktur sprzedaży (z korektami i zaliczkowymi, "
                 "bez proform) wystawionych w oknie 90 dni; należności = metryka receivables_open@1.",)
     uses = (sales_gross, open_documents)
+    uses_modules = ("kasa.core.metrics.state",)
 
     def compute(self, ctx: MetricContext, *, period: Period | None, as_of: date | None, dimensions: list[str],
                 filters: dict[str, Any]) -> Computed:

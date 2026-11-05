@@ -1,8 +1,9 @@
 """``python -m kasa metrics|retention ...`` and the export for the office (``report export --format``).
 
 * ``metrics list | show <key> | get <key> [--period 2026-10] [--as-of 2026-10-31] [--dim cost_object]
-  [--filter cost_object=Gala] [--json] | sync | lock | proposals`` - the metric layer (the same registry as
-  the agent and the dashboard);
+  [--filter cost_object=Gala] [--json] | sync | lock | golden [--write [--force]] | proposals`` - the metric
+  layer (the same registry as the agent and the dashboard); ``golden`` compares (or records) the value of
+  every metric on the fixtures after the clicks (``kasa/core/metrics/golden.lock.json``);
 * ``retention run [--now ...] | status | anonymize --company odm --before 2025-11-01 [--shred]`` - retention
   of model texts (90 days) and anonymization of persons (contract + 1 year);
 * ``report export --company odm --month 2026-10 --format csv|xlsx --out <katalog> [--by artur]`` - the full
@@ -91,7 +92,8 @@ def cmd_metrics_sync(args: argparse.Namespace) -> int:
             print(f"Błąd: {exc}", file=sys.stderr)
             return 1
     print(f"Definicje metryk: nowe {len(report['added'])}, bez zmian {len(report['unchanged'])}, wycofane "
-          f"{len(report['deprecated'])}")
+          f"{len(report['deprecated'])}"
+          + (f", nowy skrót (schemat 2, kod bez zmian) {len(report['rehashed'])}" if report.get("rehashed") else ""))
     for ref in report["added"]:
         print(f"  + {ref}")
     for ref in report["deprecated"]:
@@ -106,6 +108,41 @@ def cmd_metrics_lock(args: argparse.Namespace) -> int:
         print(f"Błąd: {exc}", file=sys.stderr)
         return 1
     print(f"Zapisano {registry.LOCK_FILE} ({len(entries)} definicji)")
+    return 0
+
+
+def _fixtures_database() -> str:
+    """The clicked fixtures database of the tests (pipeline of phase 4 + the person's clicks), built from zero."""
+    try:
+        from tests.metrics.helpers import clicked_database
+    except ImportError:
+        raise SystemExit("Złoty wynik liczy się na bazie z fixtures - uruchom z katalogu repozytorium "
+                         "(potrzebne fixtures/ i tests/), albo podaj --url bazy po kliknięciach") from None
+    return clicked_database()
+
+
+def cmd_metrics_golden(args: argparse.Namespace) -> int:
+    from kasa.core.metrics import golden
+
+    url = args.url or _fixtures_database()
+    with connect(url) as conn:
+        with conn.transaction(force_rollback=True):
+            registry.sync_definitions(conn, refresh_views=False)
+            current = golden.golden_values(conn, _company_id(conn, args.company))
+    if not args.write:
+        problems = golden.compare(current, golden.read_golden())
+        for problem in problems:
+            print(f"  {problem}")
+        print("Złoty wynik: zgodny." if not problems else f"Złoty wynik: różnice {len(problems)} "
+              "(python -m kasa metrics golden --write po świadomej zmianie wersji)")
+        return 0 if not problems else 1
+    try:
+        report = golden.write_golden(current, force=args.force)
+    except DefinitionChanged as exc:
+        print(f"Błąd: {exc}", file=sys.stderr)
+        return 1
+    print(f"Zapisano {golden.GOLDEN_FILE} ({len(current)} metryk; nowe {len(report['added'])}"
+          + (f", nadpisane --force {len(report['changed'])}" if report["changed"] else "") + ")")
     return 0
 
 
@@ -242,6 +279,14 @@ def register(sub: argparse._SubParsersAction) -> None:
         handler=cmd_metrics_sync)
     m_sub.add_parser("lock", help="zapisz skróty kodu definicji (po dodaniu NOWEJ wersji)").set_defaults(
         handler=cmd_metrics_lock)
+    p = m_sub.add_parser("golden", help="złoty wynik: wartość każdej metryki na fixtures po kliknięciach "
+                                         "(bez --write: porównaj)")
+    p.add_argument("--write", action="store_true", help="zapisz golden.lock.json (po świadomej zmianie wersji)")
+    p.add_argument("--force", action="store_true", help="z --write: nadpisz też zmienione wyniki zapisanych wersji "
+                                                       "(tylko po świadomej zmianie danych fixtures)")
+    p.add_argument("--url", help="gotowa baza z fixtures po kliknięciach (domyślnie budowana od zera)")
+    p.add_argument("--company", default="odm", help="firma fixtures (domyślnie odm)")
+    p.set_defaults(handler=cmd_metrics_golden)
     p = m_sub.add_parser("proposals", help="propozycje metryk (pytania spoza warstwy metryk)")
     p.add_argument("--company", default="odm")
     p.add_argument("--limit", type=int, default=20)
