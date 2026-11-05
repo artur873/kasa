@@ -9,6 +9,7 @@ import psycopg
 import pytest
 
 from kasa.core.db import APPEND_ONLY, HUMAN_DECISION_PROTECTED
+from kasa.core.decisions import log_decision
 from kasa.core.matching.fx import convert_minor, rate_for
 from kasa.core.matching.weights import badge
 
@@ -35,7 +36,14 @@ def test_every_new_company_gets_the_builtin_rules_by_the_briefing(conn, make):
     with pytest.raises(psycopg.Error) as err, conn.transaction():
         conn.execute("UPDATE l3_rule SET stage = 'suspended', method = 'code' WHERE id = %s", (rule,))
     assert err.value.sqlstate == HUMAN_DECISION_PROTECTED
-    conn.execute("UPDATE l3_rule SET stage = 'suspended', method = 'human', updated_by = 'artur' WHERE id = %s", (rule,))
+    # ... and a human change carries a new decision (KS003, review of phase 1, point 13)
+    with pytest.raises(psycopg.Error) as err, conn.transaction():
+        conn.execute("UPDATE l3_rule SET stage = 'suspended', method = 'human' WHERE id = %s", (rule,))
+    assert err.value.sqlstate == HUMAN_DECISION_PROTECTED
+    decision = log_decision(conn, company_id=company, kind="rule", subject_type="rule", subject_id=rule,
+                            decided_by="artur", source="test", payload={"action": "suspend"})
+    conn.execute("UPDATE l3_rule SET stage = 'suspended', method = 'human', updated_by = 'artur', decision_id = %s "
+                 "WHERE id = %s", (decision, rule))
 
 
 def test_match_has_exactly_one_of_three_targets(conn, make):

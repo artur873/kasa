@@ -215,9 +215,14 @@ def test_b_human_allocation_is_protected(conn, make):
     with db_error(conn, DELETE_FORBIDDEN):
         conn.execute("TRUNCATE l3_allocation")
 
-    # A human may change a human decision.
+    # A human may change a human decision - with a new decision (review of phase 1, point 13): writing
+    # "human" without one is refused, so code cannot pose as the person.
+    with db_error(conn, HUMAN_DECISION_PROTECTED):
+        conn.execute("UPDATE l3_allocation SET share = 0.5, method = 'human' WHERE id = %s", (allocation,))
+    change = make.decision(company, "transaction", transaction)
     conn.execute(
-        "UPDATE l3_allocation SET share = 0.5, method = 'human', updated_by = 'artur' WHERE id = %s", (allocation,)
+        "UPDATE l3_allocation SET share = 0.5, method = 'human', updated_by = 'artur', decision_id = %s WHERE id = %s",
+        (change, allocation),
     )
     share, method, updated_at = conn.execute(
         "SELECT share, method, updated_at FROM l3_allocation WHERE id = %s", (allocation,)
@@ -406,7 +411,9 @@ def test_e_rule_write_requires_rule_in_auto_stage(conn, make):
 
     # A human promotes the rule to auto; from now on the automation may decide.
     rule = make.rule(company, stage="shadow")
-    conn.execute("UPDATE l3_rule SET stage = 'auto', method = 'human', updated_by = 'artur' WHERE id = %s", (rule,))
+    promote = make.decision(company, "rule", rule, kind="rule")
+    conn.execute("UPDATE l3_rule SET stage = 'auto', method = 'human', updated_by = 'artur', decision_id = %s "
+                 "WHERE id = %s", (promote, rule))
     with db_error(conn, RULE_NOT_AUTO):
         make.decision(company, "transaction", transaction, method="rule", rule_id=rule, rule_version=2)
     auto_decision = make.decision(company, "transaction", transaction, method="rule", rule_id=rule, rule_version=1)
@@ -414,7 +421,9 @@ def test_e_rule_write_requires_rule_in_auto_stage(conn, make):
                                  rule_id=rule, rule_version=1)
 
     # Suspended (by a human): the automation can no longer touch even its own rows ...
-    conn.execute("UPDATE l3_rule SET stage = 'suspended', method = 'human' WHERE id = %s", (rule,))
+    suspend = make.decision(company, "rule", rule, kind="rule")
+    conn.execute("UPDATE l3_rule SET stage = 'suspended', method = 'human', decision_id = %s WHERE id = %s",
+                 (suspend, rule))
     with db_error(conn, RULE_NOT_AUTO):
         conn.execute("UPDATE l3_allocation SET share = 0.5 WHERE id = %s", (allocation,))
     # ... while a human can revoke them.

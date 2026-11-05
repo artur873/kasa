@@ -1,6 +1,6 @@
-# Schemat bazy (fazy 1-3)
+# Schemat bazy (fazy 1-4)
 
-Migracje: `migrations/0001_core.sql` … `0008_phase3_semantics.sql`, stosowane przez `python -m kasa migrate`
+Migracje: `migrations/0001_core.sql` … `0011_phase4_queue_rules.sql`, stosowane przez `python -m kasa migrate`
 (każdy plik w osobnej transakcji, zapis w `schema_migrations` z sumą SHA-256; zmiana zastosowanego pliku = błąd).
 Rozszerzenia PostgreSQL: `pgcrypto` (od 0006, szyfrowanie kluczy pseudonimów; `gen_random_uuid()` jest wbudowane).
 Sekcje do „Zasad triggerów” opisują fazę 1; tabele faz 2 i 3 są opisane na końcu.
@@ -73,7 +73,7 @@ dzienniku), `status` `active`/`revoked` i `revoked_by_decision`. Cofnięcie = no
 | --- | --- | --- |
 | `KS001` | Tylko INSERT: UPDATE i DELETE zgłaszają wyjątek. | `l0_raw`, `l3_decision_log` |
 | `KS002` | Nic nie kasujemy: DELETE i TRUNCATE zgłaszają wyjątek. | wszystkie tabele L1, L2, L3 (TRUNCATE także L0) |
-| `KS003` | Wiersz z `method = 'human'` może zmienić tylko zapis z `method = 'human'` (UPDATE dozwolony, gdy `NEW.method = 'human'` albo `OLD.method <> 'human'`). | wszystkie tabele L3 |
+| `KS003` | Wiersz z `method = 'human'` może zmienić tylko zapis z `method = 'human'` (UPDATE dozwolony, gdy `NEW.method = 'human'` albo `OLD.method <> 'human'`). Od 0011: zapis `human` musi nieść nową decyzję (`decision_id`) albo cofnięcie (`revoked_by_decision`); same kolumny księgowe (`updated_at`, `updated_by`, `last_hit_at`) wolno zmienić bez niej. | wszystkie tabele L3 |
 | `KS004` | Zapis z `method = 'rule'` musi wskazać `rule_id` + `rule_version` reguły tej samej firmy w etapie `auto` (wiersz reguły blokowany `FOR SHARE`, więc zawieszenie reguły czeka na zapis automatu). Gdy reguła przestanie być `auto`, automat nie zmieni już nawet swoich wierszy; człowiek może je cofnąć. | wszystkie tabele L3 |
 | `KS005` | Podmiot polimorficzny (`subject_type`, `subject_id`) musi istnieć w tej samej firmie. | `l2_suggestion`, `l3_decision_log`, `l3_allocation`, `l3_category_decision` |
 | `KS006` | `company_id` istniejącego wiersza nie może się zmienić. | wszystkie tabele L3 |
@@ -155,3 +155,23 @@ Opis: `docs/ALOKACJA.md`.
 | `cost_object_pair_verdict`, `cost_object_pair_decision` | Werdykt człowieka o parze obiektów (`a_id < b_id`): `different` (przycisk „na pewno różne” i podział - odkrywanie nigdy ich nie skleja) albo `same` (połączenie); z decyzją w dzienniku; obowiązuje najnowszy werdykt pary. Tylko dopisywanie. |
 | `l2_suggestion_subject_type_check` | Podmiotem sugestii może być też obiekt kosztowy (karta kandydata, `kind = cost_object_candidate`) i reguła (karta reguły, `kind = rule_candidate`). |
 | `kasa_seed_builtin_allocation_rule(company_id)`, trigger `company_builtin_allocation_rule` | Reguła wbudowana `builtin:allocation_explicit_identifier` (etap `auto`, `method = 'human'`, `created_by = 'briefing-2026-11-03'`) dla każdej firmy, także nowej: automat alokacji tylko dla sygnału A bez sprzeczności (decyzja D3); zawieszenie reguły wyłącza automat. |
+
+## Faza 4 - kolejka przeglądu i reguły (`0011_phase4_queue_rules.sql`)
+
+Opis: `docs/KOLEJKA.md`, `docs/REGULY.md`.
+
+| Obiekt | Co to jest |
+| --- | --- |
+| `l3_rule.question`, `scope`, `last_hit_at`, `suspended_reason`, `post_mortem` | Pytanie biznesowe karty; zakres `{"counterparties": [...], "subject_types": [...]}` (znani kontrahenci - nowy kontrahent = brak trafienia; `{}` = bez ograniczeń, reguły wbudowane); ostatnie trafienie (księgowość); powód zawieszenia i szkic post-mortem. Indeks `l3_rule_signature_key` (`evidence.signature` + wersja) - jeden kandydat na wzorzec. |
+| `l2_rule_observation` | Obserwacja reguły (przegląd fazy 1, pkt 6): reguła z wersją, etap w chwili obserwacji, podmiot, decyzja człowieka, `predicted`, `actual`, `agreed`, `observed_at`; jedna na regułę i decyzję; jedyna zmiana to wycofanie po cofnięciu decyzji (`withdrawn_at`, `withdrawn_by_decision`, KS012); komplet kolumn pochodzenia (`method = code`). |
+| `rule_stage_effective` (widok) | Etap bieżącej wersji każdej reguły liczony jako stan pochodny (K9): podpowiedź → cień po 30 obserwacjach, `ready_for_auto` przy dolnej granicy Wilsona ≥ 0,95 (73 zgodne przy 0 błędów), uśpiona po 12 mies. bez trafienia (obserwacja albo decyzja automatu), po uśpieniu znów podpowiedź; plus obserwacje, zgodne, niezgodne, decyzje automatu, ostatnie trafienie. |
+| `l2_audit_sample` | Próbka audytu automatu (przegląd fazy 1, pkt 7): decyzja automatu, miesiąc (data podmiotu), reguła, podmiot, kwota, populacja, wielkość próbki, ziarno, werdykt `confirmed`/`error` (raz, KS012), kto i kiedy, decyzja przeglądu (cofnięcie przy błędzie). |
+| `queue_state` | Karta kolejki: rodzaj (`match`, `allocation`, `category`, `sensitive`, `duplicate`, `cost_object_candidate`, `rule_candidate`, `rule_ready`, `audit`, `sentinel`), podmiot, propozycje (`suggestion_ids` wg rangi), `rank_reason` (po polsku), `priority`, `position`, odznaka, kwota, klucz paczki, `deferred_until`, `shown_at` (pierwsze pokazanie - `COALESCE`, przegląd fazy 3, pkt 8), `skipped_at`, `decided_at`, `decided_by`, `decision_id`, `outcome`, `duration_ms`, `fast_alarm` (< 0,8 s na karcie „niska”), `closed_at`. Najwyżej jedna otwarta karta na (firma, rodzaj, podmiot); nic nie kasujemy. |
+| `queue_sentinel` | Wartownik kolejki: podmiot, pokazane propozycje, znana odpowiedź (`expected` z decyzji człowieka albo etykiety zbioru kontrolnego), odpowiedź, czas, `passed`; znana odpowiedź niezmienna, odpowiedź raz (KS012). |
+| `l3_decision_log.undo_until`, `batch_id` | Do kiedy karta pokazuje toast „Cofnij” (trigger `l3_decision_log_undo_window`: decyzja człowieka + 10 s); paczka zbiorcza (każda pozycja osobną decyzją, wspólny `batch_id`). |
+| `sensitive_exception` | „To nie jest wrażliwe” dla słowa z rdzenia/rozszerzenia: wyjątek dla jednego podmiotu (słowa, powód, kto); tylko dopisywanie. Słowo dodane przez człowieka jest zamiast tego wycofywane (`sensitive_term.retired_at`, przegląd fazy 3, pkt 3). |
+| `kasa_l3_guard` (nowa treść) | KS003 zaostrzony (przegląd fazy 1, pkt 13) - patrz tabela zasad triggerów. |
+| `decision_kind.duplicate` | Werdykt człowieka o sugestii duplikatu dokumentu. |
+
+Nowy kod strażnika: `KS012` - obserwacja reguły, próbka audytu i wartownik kolejki zapisują wynik tylko raz.
+`python -m kasa check` sprawdza także triggery 0011 (`kasa/core/checks.py`, dopisane na końcu).

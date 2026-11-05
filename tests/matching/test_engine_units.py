@@ -11,6 +11,7 @@ import psycopg
 import pytest
 
 from kasa.core.db import RULE_NOT_AUTO
+from kasa.core.decisions import log_decision
 from kasa.core.matching.data import load_context
 from kasa.core.matching.decide import MatchDecisionError, apply_match
 from kasa.core.matching.engine import evaluate
@@ -158,14 +159,20 @@ def test_the_automation_needs_a_rule_in_stage_auto(mconn, odm):
     ev = evaluate(mconn, odm.id, subject_ids={ref})
     saved = save_result(mconn, odm.id, ev.results[0], ev.params)
     rule = ev.ctx.builtin_rules["builtin:match_invoice_number_same_counterparty"]
-    mconn.execute("UPDATE l3_rule SET stage = 'suspended', method = 'human', updated_by = 'artur' WHERE id = %s",
-                  (rule["id"],))
+    # a human change of a rule carries a new decision (KS003, review of phase 1, point 13)
+    suspend = log_decision(mconn, company_id=odm.id, kind="rule", subject_type="rule", subject_id=rule["id"],
+                           decided_by="artur", source="test", payload={"action": "suspend"})
+    mconn.execute("UPDATE l3_rule SET stage = 'suspended', method = 'human', updated_by = 'artur', decision_id = %s "
+                  "WHERE id = %s", (suspend, rule["id"]))
     with pytest.raises(psycopg.Error) as err, mconn.transaction():
         apply_match(mconn, saved.suggestion_ids[0], decided_by="rule:x", method="rule", rule_id=rule["id"],
                     rule_version=rule["version"])
     assert err.value.sqlstate == RULE_NOT_AUTO
     # a suspended built-in rule = the run sends the transfer to the queue
-    mconn.execute("UPDATE l3_rule SET stage = 'auto', method = 'human' WHERE id = %s", (rule["id"],))
+    resume = log_decision(mconn, company_id=odm.id, kind="rule", subject_type="rule", subject_id=rule["id"],
+                          decided_by="artur", source="test", payload={"action": "resume"})
+    mconn.execute("UPDATE l3_rule SET stage = 'auto', method = 'human', decision_id = %s WHERE id = %s",
+                  (resume, rule["id"]))
     with pytest.raises(MatchDecisionError):
         apply_match(mconn, saved.suggestion_ids[0], decided_by="rule:x", method="rule")
 

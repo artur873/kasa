@@ -835,3 +835,24 @@ def _allocation_truth_check(conn: psycopg.Connection) -> str:
 
 
 TRUTH_CHECKS.append(("Kontrola prawdy 3: alokacje = 100%", _allocation_truth_check))
+
+
+# ---------------------------------------------------------------------------
+# Phase 4C (0011): observations of rules and the audit sample are L2 tables (no delete, no truncate);
+# the queue's tables, the undo window of the decision log and the guards of 0011 must be enabled too.
+# ---------------------------------------------------------------------------
+
+L2_TABLES = (*L2_TABLES, "l2_rule_observation", "l2_audit_sample")
+_expected_triggers_before_queue = expected_triggers
+
+
+def expected_triggers() -> set[tuple[str, str]]:  # noqa: F811 - extended, never edited (contract of phase 4)
+    return _expected_triggers_before_queue() | {
+        ("l2_rule_observation", "l2_rule_observation_guard"),
+        ("l2_rule_observation", "l2_rule_observation_subject_guard"),
+        ("l2_audit_sample", "l2_audit_sample_guard"),
+        ("queue_state", "queue_state_no_delete"),
+        ("queue_sentinel", "queue_sentinel_guard"),
+        ("sensitive_exception", "sensitive_exception_append_only"),
+        ("l3_decision_log", "l3_decision_log_undo_window"),
+    }

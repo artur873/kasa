@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}KPI kolejki{% endblock %}
+{% block where %}KPI{% endblock %}
+{% block body %}
+{% set s = stats %}
+{% for w in s.warnings %}<div class="error">{{ w }}</div>{% endfor %}
+<div class="card">
+  <p class="title"><strong>{{ s.work_minutes }} min</strong> Twojej pracy · {{ s.decided_cards }} kart
+    {% if s.median_seconds is not none %}(mediana {{ s.median_seconds }} s){% endif %}</p>
+  <p>Błędy ważone kwotą: <strong>{{ '%.2f'|format(s.errors_weighted_minor / 100) }} zł</strong></p>
+  <p class="muted small">KPI to spadek minut pracy przy zerowym wzroście błędów ważonych kwotą - nie „procent obsłużony przez AI”.</p>
+</div>
+<div class="card"><table>
+  <tr><td>Otwarte karty</td><td>{{ s.open_cards }}{% if s.deferred %} (odłożone {{ s.deferred }}){% endif %}</td></tr>
+  {% for k, v in s.open_by_kind.items() %}<tr><td class="muted">· {{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
+  <tr><td>Audyt</td><td>wylosowano {{ s.audit.sampled }}, potwierdzone {{ s.audit.confirmed }}, błędy {{ s.audit.errors }}, otwarte {{ s.audit.open }}</td></tr>
+  <tr><td>Cofnięcia</td><td>w 10 s {{ s.revocations.in_toast_window }}, później {{ s.revocations.later }}, decyzji automatu {{ s.revocations.of_automation }}</td></tr>
+  <tr><td>Wartownicy</td><td>odpowiedzi {{ s.sentinels.answered }}, dobre {{ s.sentinels.passed }}, złe {{ s.sentinels.failed }}</td></tr>
+  <tr><td>Alarm &lt; 0,8 s</td><td>{{ s.fast_alarms }}</td></tr>
+</table></div>
+<div class="card"><table>{% for d in s.by_day %}<tr><td>{{ d.day }}</td><td>{{ d.cards }} kart</td><td>{{ d.minutes }} min</td></tr>{% endfor %}</table></div>
+{% endblock %}

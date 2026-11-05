@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Inne… - kolejka{% endblock %}
+{% block where %}Inne…{% endblock %}
+{% block body %}
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+{% set s = card.subject %}
+<div class="card">
+  {% if s.amount %}<div class="amount{{ ' in' if s.inflow else '' }}">{{ s.amount }}</div>{% endif %}
+  <div class="muted">{{ s.direction or '' }}{% if s.date %} · {{ s.date }}{% endif %} · {{ s.counterparty or '' }}</div>
+  <div class="title">{{ s.title }}</div>
+</div>
+
+{% if card.kind == 'match' %}
+<form class="card" method="get" action="/queue/items/{{ item.id }}/other">
+  <div class="row"><input type="search" name="q" value="{{ query }}" placeholder="Szukaj dokumentu: numer lub kwota">
+    <button class="secondary" type="submit" style="flex: 0 0 auto; width: auto;">Szukaj</button></div>
+</form>
+<form method="post" action="/queue/items/{{ item.id }}/other">
+  <fieldset class="card"><legend>Decyzja</legend>
+    <div class="choices two">
+      <label class="choice"><input type="radio" id="status-matched" name="kind" value="matched" required><span>dopasuj dokument</span></label>
+      <label class="choice"><input type="radio" id="status-no_document" name="kind" value="no_document"><span>bez dokumentu</span></label>
+      <label class="choice"><input type="radio" name="kind" value="own_transfer"><span>transfer własny</span></label>
+      <label class="choice"><input type="radio" name="kind" value="to_clarify"><span>do wyjaśnienia</span></label>
+    </div>
+  </fieldset>
+  <fieldset class="card only-matched"><legend>Dokument</legend>
+    <div class="choices">{% for doc in documents %}
+      <label class="choice doc"><input type="checkbox" name="documents" value="{{ doc.type }}:{{ doc.id }}"><span>
+        {{ doc.number_raw or '-' }} · {{ doc.amount }} · {{ doc.issue_date }}{% if doc.party %} · {{ doc.party }}{% endif %}{% if doc.type == 'internal_record' %} (arkusz){% endif %}</span></label>
+    {% else %}<p class="muted">Brak otwartych dokumentów - użyj wyszukiwarki.</p>{% endfor %}</div>
+  </fieldset>
+  <fieldset class="card only-nodoc"><legend>Rodzaj (obowiązkowy)</legend>
+    <div class="choices two">{% for value, text in subtypes.items() %}
+      <label class="choice"><input type="radio" name="subtype" value="{{ value }}"><span>{{ text }}</span></label>{% endfor %}</div>
+  </fieldset>
+  <fieldset class="card"><input type="text" name="reason" placeholder="dlaczego (opcjonalnie)" autocomplete="off"></fieldset>
+  <button type="submit">Zapisz</button>
+</form>
+
+{% elif card.kind == 'allocation' %}
+<form method="post" action="/queue/items/{{ item.id }}/other">
+  <input type="hidden" name="kind" value="allocation">
+  <fieldset class="card"><legend>Podział na obiekty (udział w % albo 0-1; razem 100%)</legend>
+    {% for o in objects %}<div class="row"><span style="flex: 2">{{ o.name }}</span>
+      <input type="hidden" name="object" value="{{ o.id }}"><input type="text" name="share_{{ o.id }}" placeholder="0" inputmode="decimal"></div>{% endfor %}
+  </fieldset>
+  <fieldset class="card"><input type="text" name="reason" placeholder="dlaczego (opcjonalnie)" autocomplete="off"></fieldset>
+  <button type="submit">Zapisz podział</button>
+</form>
+
+{% elif card.kind in ('category', 'sensitive') %}
+<form method="post" action="/queue/items/{{ item.id }}/other">
+  <input type="hidden" name="kind" value="category">
+  <fieldset class="card"><legend>Kategoria</legend>
+    <select name="category" required><option value="">(wybierz)</option>{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></fieldset>
+  <button type="submit">Zapisz</button>
+</form>
+
+{% elif card.kind == 'rule_candidate' %}
+<form method="post" action="/queue/items/{{ item.id }}/answer">
+  <input type="hidden" name="action" value="correct">
+  <fieldset class="card"><legend>Pytanie</legend><input type="text" name="question" value="{{ card.rule.question }}"></fieldset>
+  <fieldset class="card"><legend>Wzorzec (JSON)</legend><textarea name="pattern">{{ card.rule.pattern | tojson }}</textarea></fieldset>
+  <fieldset class="card"><legend>Akcja (JSON)</legend><textarea name="rule_action">{{ card.rule.action | tojson }}</textarea></fieldset>
+  <button type="submit">Zapisz nową wersję</button>
+</form>
+{% endif %}
+<p><a class="button secondary" href="/queue/items/{{ item.id }}">Wróć do karty</a></p>
+{% endblock %}

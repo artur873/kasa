@@ -1,4 +1,4 @@
-"""``python -m kasa web`` - the owner's panel (control-set labeling; the review queue in phase 4)."""
+"""``python -m kasa web`` - the owner's panel: the review queue (phase 4) and control-set labeling."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def cmd_web(args: argparse.Namespace) -> int:
 
 
 def register(sub: argparse._SubParsersAction) -> None:
-    p = sub.add_parser("web", help="panel WWW (telefon): etykietowanie zbiorów kontrolnych")
+    p = sub.add_parser("web", help="panel WWW (telefon): kolejka przeglądu i etykietowanie zbiorów kontrolnych")
     p.add_argument("--port", type=int, default=8787)
     p.add_argument("--host", default="127.0.0.1",
                    help="adres nasłuchu; 0.0.0.0 = sieć lokalna (wtedy wymagany token)")

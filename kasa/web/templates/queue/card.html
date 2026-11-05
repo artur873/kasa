@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Kolejka - {{ company.slug }}{% endblock %}
+{% block where %}{{ remaining }} kart{% if deferred %} · odłożone {{ deferred }}{% endif %}{% endblock %}
+{% block body %}
+{% if toast %}
+<div class="toast" id="toast" data-until="{{ toast.until or '' }}">
+  <span>{{ toast.message }}</span>
+  {% if toast.undo or toast.batch %}
+  <form method="post" action="/queue/undo">
+    {% if toast.batch %}<input type="hidden" name="batch" value="{{ toast.batch }}">{% else %}<input type="hidden" name="decision" value="{{ toast.undo }}">{% endif %}
+    <button type="submit">Cofnij</button>
+  </form>
+  {% endif %}
+</div>
+<script>
+  // minimal JS: the toast disappears 10 s after the decision (undo stays in "Historia")
+  (function () {
+    var t = document.getElementById("toast"); if (!t) return;
+    var until = Date.parse(t.dataset.until || ""); var left = isNaN(until) ? 10000 : Math.max(0, until - Date.now());
+    setTimeout(function () { t.style.display = "none"; }, left);
+  })();
+</script>
+{% endif %}
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+{% if not card %}
+<div class="card">
+  <p class="title">Kolejka pusta{% if deferred %} - odłożonych kart: {{ deferred }}{% endif %}.</p>
+  <form method="post" action="/queue/build"><input type="hidden" name="company" value="{{ company.slug }}">
+    <button type="submit" class="secondary">Odśwież kolejkę</button></form>
+</div>
+{% else %}
+{% set s = card.subject %}
+<div class="muted small">#{{ card.position }} · {{ card.rank_reason }}</div>
+<div class="card">
+  {% if card.label %}<span class="tag">{{ card.label }}</span>{% endif %}
+  {% if s.amount %}<div class="amount{{ ' in' if s.inflow else '' }}">{{ s.amount }}</div>{% endif %}
+  <div class="muted">{{ s.direction or '' }}{% if s.date %} · {{ s.date }}{% endif %}{% if s.op_type %} · {{ s.op_type }}{% endif %}</div>
+  {% if s.counterparty %}<div><strong>{{ s.counterparty }}</strong></div>{% endif %}
+  <div class="title">{{ s.title }}</div>
+  {% if s.document %}<div class="muted small">{{ s.document }}</div>{% endif %}
+  {% if s.lines %}<ul class="lines">{% for line in s.lines %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
+  {% if s.fields %}<dl class="facts">{% for k, v in s.fields.items() %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>{% endif %}
+  {% if card.badge %}<p><span class="badge {{ card.badge }}">odznaka {{ card.badge_pl }}</span>
+    {% if card.precedents %}<span class="muted small"> · {{ card.precedents }} precedensów</span>{% endif %}</p>{% endif %}
+</div>
+
+{% if card.kind in ('match', 'allocation', 'category', 'duplicate', 'sensitive') %}
+  {% if card.batch %}
+  <form class="card" method="post" action="/queue/items/{{ card.id }}/answer">
+    <input type="hidden" name="action" value="bulk">
+    {% for sid in card.batch.suggestion_ids %}<input type="hidden" name="suggestion_ids" value="{{ sid }}">{% endfor %}
+    <button type="submit">{{ card.batch.label }}</button>
+    <p class="muted small">Każda pozycja to osobna decyzja; cofnięcie paczki cofa dokładnie te {{ card.batch.count }}.</p>
+  </form>
+  {% endif %}
+  {% if card.kind == 'sensitive' %}
+  <form class="card" method="post" action="/queue/items/{{ card.id }}/answer">
+    <input type="hidden" name="action" value="accept">
+    <fieldset><legend>Kategoria (tekst nie trafił do modelu)</legend>
+      <select name="category" required><option value="">(wybierz)</option>{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select>
+    </fieldset>
+    <button type="submit">Zapisz kategorię</button>
+  </form>
+  <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="not_sensitive">
+    <button class="secondary" type="submit">To nie jest wrażliwe</button></form>
+  {% else %}
+  {% for p in card.proposals %}
+  <form class="proposal card" method="post" action="/queue/items/{{ card.id }}/answer">
+    <input type="hidden" name="action" value="accept"><input type="hidden" name="suggestion_id" value="{{ p.suggestion_id }}">
+    {% if p.partial %}
+      <p><strong>{{ p.label }}</strong></p>
+      <a class="button secondary" href="/queue/items/{{ card.id }}/other">Uzupełnij podział (Inne…)</a>
+    {% else %}
+      <button type="submit" {% if loop.index > 1 %}class="secondary"{% endif %}>{{ 'Akceptuj: ' if loop.index == 1 else '' }}{{ p.label }}</button>
+    {% endif %}
+    <div class="muted small"><span class="badge {{ p.badge }}">{{ p.badge_pl }}</span>{% if p.precedents %} · {{ p.precedents }} precedensów{% endif %}</div>
+    <ul>{% for f in p.facts %}<li>{{ f }}</li>{% endfor %}</ul>
+    <input type="text" name="reason" placeholder="dlaczego (opcjonalnie)" autocomplete="off">
+  </form>
+  {% else %}
+  <p class="muted">Brak propozycji - wybierz „Inne…”.</p>
+  {% endfor %}
+  {% endif %}
+  {% if card.tie_documents %}
+  <div class="card"><strong>Niejednoznaczne - równorzędne faktury ({{ card.tie_documents|length }}):</strong>
+    <ul class="lines">{% for d in card.tie_documents %}<li>{{ d.number }} · {{ d.amount }} · {{ d.issue_date }} (termin {{ d.due_date }})</li>{% endfor %}</ul>
+    <p class="muted small">Wybierz właściwą w „Inne…”.</p></div>
+  {% endif %}
+  <div class="actions">
+    <a class="button secondary" href="/queue/items/{{ card.id }}/other">Inne…</a>
+    {% if card.proposals and card.kind != 'sensitive' %}
+    <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="reject">
+      <input type="hidden" name="suggestion_id" value="{{ card.proposals[0].suggestion_id }}"><button class="secondary" type="submit">Odrzuć</button></form>
+    {% endif %}
+    <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="defer">
+      <button class="secondary" type="submit">Odłóż</button></form>
+  </div>
+
+{% elif card.kind == 'cost_object_candidate' %}
+  {% set c = card.candidate %}
+  <div class="card">
+    <p class="title"><strong>{{ c.name }}</strong></p>
+    <dl class="facts"><dt>Klient</dt><dd>{{ c.client or '-' }}</dd><dt>Daty</dt><dd>{{ c.date_start }} - {{ c.date_end }}</dd>
+      <dt>Miasto</dt><dd>{{ c.city or '-' }}</dd><dt>Przychód</dt><dd>{{ c.revenue }}</dd><dt>Koszty</dt><dd>{{ c.cost }}</dd>
+      <dt>Najsłabsze</dt><dd>{{ c.weakest_link }}</dd></dl>
+  </div>
+  <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="approve">
+    <button type="submit">Zatwierdź</button></form>
+  <form class="card" method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="split">
+    <fieldset><legend>Rekordy ({{ c.members|length }}) - zaznacz pierwszą grupę, by podzielić</legend>
+    {% for m in c.members %}<input type="hidden" name="members" value="{{ m.member_id }}">
+      <label class="choice doc"><input type="checkbox" name="group_a" value="{{ m.member_id }}"><span>{{ '★ ' if m.anchor else '' }}{{ m.type }}: {{ m.label }} {{ m.amount }} ({{ m.strength }})</span></label>{% endfor %}
+    </fieldset><button class="secondary" type="submit">Podziel</button></form>
+  {% if c.others %}
+  <form class="card" method="post" action="/queue/items/{{ card.id }}/answer">
+    <select name="with">{% for o in c.others %}<option value="{{ o.id }}">{{ o.name }} ({{ o.status }})</option>{% endfor %}</select>
+    <div class="actions"><button class="secondary" type="submit" name="action" value="merge">Połącz z</button>
+      <button class="secondary" type="submit" name="action" value="distinct">Na pewno różne</button></div>
+  </form>
+  {% endif %}
+  <div class="actions">
+    <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="reject">
+      <button class="secondary" type="submit">Odrzuć</button></form>
+    <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="defer">
+      <button class="secondary" type="submit">Odłóż</button></form>
+  </div>
+
+{% elif card.kind == 'rule_candidate' %}
+  {% set r = card.rule %}
+  <div class="card"><p class="title"><strong>{{ r.question }}</strong></p><p>{{ r.summary }} · miesiące {{ r.months|join(', ') }}</p>
+    <p class="muted small">Przykłady:</p><ul class="lines">{% for e in r.examples %}<li>{{ e.date }} · {{ e.amount }} · {{ e.label }}</li>{% endfor %}</ul>
+    <p class="muted small">Wyjątki ({{ r.exceptions|length }}):</p><ul class="lines">{% for e in r.exceptions %}<li>{{ e.date }} · {{ e.amount }} · {{ e.label }} - {{ e.outcome }}</li>{% else %}<li>brak</li>{% endfor %}</ul>
+  </div>
+  <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="accept">
+    <button type="submit">Akceptuj (jako podpowiedź)</button></form>
+  <div class="actions">
+    <a class="button secondary" href="/queue/items/{{ card.id }}/other">Popraw</a>
+    <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="reject">
+      <button class="secondary" type="submit">Odrzuć</button></form>
+  </div>
+
+{% elif card.kind == 'rule_ready' %}
+  {% set r = card.rule %}
+  <div class="card"><p class="title"><strong>Reguła {{ r.rule_key }} jest gotowa</strong></p><p>{{ r.question }}</p>
+    <p>{{ r.summary }} (dolna granica {{ '%.3f'|format(r.wilson_lower) }})</p>
+    <p class="muted small">Od włączenia reguła sama tworzy decyzje (bez limitu kwoty, D7), nie obejmuje nowych kontrahentów; jedna Twoja poprawka ją zawiesza.</p></div>
+  <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="accept">
+    <button type="submit">Włącz auto</button></form>
+  <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="defer">
+    <button class="secondary" type="submit">Nie teraz</button></form>
+
+{% elif card.kind == 'audit' %}
+  {% set a = card.audit %}
+  <div class="card"><p>Decyzja automatu ({{ a.rule_key }}, {{ a.decided_at }}):</p><p class="title"><strong>{{ a.decision }}</strong></p>
+    <ul class="lines">{% for f in a.facts %}<li>{{ f }}</li>{% endfor %}</ul></div>
+  <div class="actions">
+    <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="confirmed">
+      <button type="submit">Potwierdź</button></form>
+    <form method="post" action="/queue/items/{{ card.id }}/answer"><input type="hidden" name="action" value="error">
+      <button class="secondary" type="submit">Błąd</button></form>
+  </div>
+{% endif %}
+
+{% if card.details.narration %}
+<details class="card"><summary>Szczegóły</summary><p class="small">{{ card.details.narration }}</p></details>
+{% endif %}
+{% endif %}
+{% endblock %}

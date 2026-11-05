@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Historia decyzji{% endblock %}
+{% block where %}Historia{% endblock %}
+{% block body %}
+{% if message %}<div class="toast"><span>{{ message }}</span></div>{% endif %}
+<p class="muted small">{% if auto %}<a href="/queue/history">tylko Twoje decyzje</a>{% else %}<a href="/queue/history?auto=1">pokaż też decyzje automatu</a>{% endif %}</p>
+{% for r in rows %}
+<div class="card">
+  <div class="muted small">{{ r.decided_at.strftime('%Y-%m-%d %H:%M:%S') }} · {{ r.decided_by }} · {{ r.kind }}{% if r.batch_id %} · paczka{% endif %}</div>
+  <div>{{ r.label }}</div>
+  {% if r.reason %}<div class="muted small">dlaczego: {{ r.reason }}</div>{% endif %}
+  {% if r.revoked_by %}<div class="muted small">cofnięta</div>
+  {% elif r.can_undo %}
+  <div class="actions">
+    <form method="post" action="/queue/undo"><input type="hidden" name="decision" value="{{ r.id }}"><input type="hidden" name="back" value="/queue/history">
+      <button class="secondary" type="submit">Cofnij</button></form>
+    {% if r.batch_id %}<form method="post" action="/queue/undo"><input type="hidden" name="batch" value="{{ r.batch_id }}"><input type="hidden" name="back" value="/queue/history">
+      <button class="secondary" type="submit">Cofnij paczkę</button></form>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<p class="muted">Brak decyzji.</p>
+{% endfor %}
+{% endblock %}

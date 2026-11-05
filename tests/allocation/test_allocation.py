@@ -17,6 +17,7 @@ from kasa.core.allocation.decide import (
 )
 from kasa.core.allocation.run import run_allocation
 from kasa.core.checks import check_allocation_shares
+from kasa.core.decisions import log_decision
 from kasa.core.extension import AllocationSpec, get_extension
 from kasa.core.normalize import normalize_invoice_number
 
@@ -262,8 +263,13 @@ def test_pm_sheet_becomes_automatic_only_when_the_extension_says_so(lconn, odm, 
 
 
 def test_automation_stops_when_the_builtin_rule_is_suspended(lconn, odm, approved):
-    lconn.execute("UPDATE l3_rule SET stage = 'suspended', method = 'human', updated_by = 'artur' "
-                  "WHERE company_id = %s AND rule_key = %s", (odm.id, BUILTIN_RULE))
+    rule = lconn.execute("SELECT id FROM l3_rule WHERE company_id = %s AND rule_key = %s", (odm.id, BUILTIN_RULE)
+                         ).fetchone()[0]
+    # a human change of a rule carries a new decision (KS003, review of phase 1, point 13)
+    decision = log_decision(lconn, company_id=odm.id, kind="rule", subject_type="rule", subject_id=rule,
+                            decided_by="artur", source="test", payload={"action": "suspend"})
+    lconn.execute("UPDATE l3_rule SET stage = 'suspended', method = 'human', updated_by = 'artur', decision_id = %s "
+                  "WHERE id = %s", (decision, rule))
     report = run_allocation(lconn, odm)
     assert report.auto["applied"] == 0 and report.auto["skipped_no_rule"] > 0
     assert lconn.execute("SELECT count(*) FROM l3_allocation WHERE company_id = %s AND method = 'rule'",
@@ -332,8 +338,10 @@ def test_truth_check_3_shares_sum_to_one(lconn, odm, approved):
     with lconn.transaction(force_rollback=True):
         decision = lconn.execute("SELECT decision_id FROM l3_allocation WHERE subject_id = %s LIMIT 1",
                                  (subject,)).fetchone()[0]
-        lconn.execute("UPDATE l3_allocation SET share = 0.2, method = 'human' WHERE subject_id = %s AND share = "
-                      "0.333334", (subject,))
+        change = log_decision(lconn, company_id=odm.id, kind="allocation", subject_type="line", subject_id=subject,
+                              decided_by="artur", source="test")
+        lconn.execute("UPDATE l3_allocation SET share = 0.2, method = 'human', decision_id = %s WHERE subject_id = %s "
+                      "AND share = 0.333334", (change, subject))
         broken = check_allocation_shares(lconn, odm.id, record=False)
         assert not broken.ok and broken.detail["violations"][0]["subject_id"] == str(subject)
         assert decision

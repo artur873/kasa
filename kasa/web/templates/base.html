@@ -52,10 +52,27 @@
   table { width: 100%; border-collapse: collapse; font-size: 15px; }
   td, th { padding: 8px 4px; border-bottom: 1px solid var(--line); text-align: left; }
   .lines { margin: 8px 0 0; padding-left: 18px; font-size: 15px; }
+  header nav a { margin: 0 2px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 600;
+           border: 1px solid var(--line); }
+  .badge.high { color: var(--ok); border-color: var(--ok); }
+  .badge.medium { color: var(--warn); border-color: var(--warn); }
+  .badge.low { color: var(--muted); }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; background: var(--accent); color: #fff; font-size: 13px; }
+  .proposal { margin: 0 0 10px; }
+  .proposal button { text-align: left; font-weight: 600; }
+  .proposal ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; color: var(--muted); }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .actions form, .actions a { margin: 0; }
+  .toast { position: sticky; top: 0; z-index: 5; background: var(--ink); color: var(--bg); padding: 12px 14px;
+           border-radius: 12px; margin-bottom: 12px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .toast button { width: auto; padding: 10px 14px; background: var(--bg); color: var(--ink); }
+  details summary { cursor: pointer; color: var(--accent); }
+  .small { font-size: 14px; }
 </style>
 </head>
 <body>
-<header><a href="/control-sets">Kasa</a><span class="muted">{% block where %}{% endblock %}</span></header>
+<header><a href="/queue">Kasa</a><nav class="muted"><a href="/queue">Kolejka</a> · <a href="/queue/history">Historia</a> · <a href="/queue/stats">KPI</a> · <a href="/control-sets">Zbiory</a></nav><span class="muted">{% block where %}{% endblock %}</span></header>
 <main>
 {% block body %}{% endblock %}
 </main>
