@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.name }} - wynik{% endblock %}
+{% block where %}{{ meta.name }}{% endblock %}
+{% block body %}
+<div class="card">
+  <h1>{{ "Zbiór zakończony" if status.completed else "Zostały pozycje bez etykiety" }}</h1>
+  <p class="progress">{{ status.progress }}</p>
+  {% if status.completed %}
+    {% if status.sentinels %}
+    <p>Pozycje kontrolne (ze znaną odpowiedzią): zgodnych {{ status.sentinel_results.passed }} z {{ status.sentinels }}.</p>
+    {% endif %}
+    {% if status.fast_labels %}<p class="muted">Etykiet szybszych niż 0,8 s: {{ status.fast_labels }}.</p>{% endif %}
+    {% if status.median_duration_ms %}<p class="muted">Mediana czasu na pozycję: {{ (status.median_duration_ms / 1000) | round(1) }} s.</p>{% endif %}
+  {% else %}
+    <a class="button" href="/control-sets/{{ meta.id }}/card">Wróć do etykietowania</a>
+  {% endif %}
+</div>
+<a class="button secondary" href="/control-sets?company={{ meta.company_slug }}">Wszystkie zbiory</a>
+{% endblock %}

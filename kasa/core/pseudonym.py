@@ -13,15 +13,17 @@ may reach a model (briefing, step 9; CLAUDE.md rule 7).
 * ``sensitive_hits`` tells whether a text contains a sensitive word (matched by
   word stem, not by substring); such a text bypasses the model entirely.
 
-Names of persons are found by code, without a model:
-1. known persons (every ``person`` row in ``pseudonym_key``: bank counterparties,
-   rows of internal sheets) in any word order, and their surnames alone;
-2. a Polish first name next to a capitalized word that is neither a safe word
-   nor a word of a company name from the counterparty registry;
-3. two capitalized words (``Xxxx Yyyy``) that are neither safe words, nor words of
-   a company name, nor first names.
-Over-pseudonymizing is the safe direction: a missed surname is a leak, an extra
-code only costs the model some context.
+Names of persons are found by code, without a model. Two capitalized words are a
+person only with evidence (phase 2 review: product, street and company names are
+not persons and stay readable):
+1. known persons - registered persons (rows of internal sheets, bank counterparties
+   of kind ``person``) and keys created with evidence (``pseudonym_key.basis``) - in
+   any word order, and their surnames alone (also inflected: "Kuczyńskiej");
+2. a Polish first name (built-in list of ~330 names with genitive forms) next to a
+   capitalized word that is neither a safe word nor a word of a company name;
+3. context: an honorific before the name ("Pan", "Pani", "P."), "BLIK" before it, or
+   "tel." / "PESEL" right after it.
+Anything else ("Google Workspace", "Rogerson's Quay", "Scena Pro") is left as it is.
 """
 
 from __future__ import annotations
@@ -136,9 +138,10 @@ def normalize_value(kind: str, value: str) -> str:
 # Dictionaries
 # ---------------------------------------------------------------------------
 
-# Common Polish first names (folded). Used to recognise "Imię Nazwisko" and
-# "Nazwisko Imię" in titles and counterparty names.
-FIRST_NAMES = frozenset(fold(n) for n in """
+# Common Polish first names. Used to recognise "Imię Nazwisko" and "Nazwisko Imię"
+# in titles, counterparty names and documents; FIRST_NAMES holds them folded, with
+# their genitive forms ("Tomasza", "Anny", "Pawła", "Julii").
+_FIRST_NAMES_TEXT = """
 Ada Adam Adrian Adrianna Agata Agnieszka Aleksander Aleksandra Aleksy Alicja Alina Amelia Anastazja Andrzej
 Aneta Angelika Aniela Anita Anna Antoni Antonina Arkadiusz Artur Barbara Bartosz Bartłomiej Beata Bernadeta
 Błażej Bogdan Bogumiła Bogusław Bożena Bronisław Cezary Celina Czesław Damian Daniel Daniela Danuta Dariusz
@@ -153,7 +156,48 @@ Oliwer Oliwia Patrycja Patryk Paula Paulina Paweł Piotr Przemysław Radosław R
 Róża Ryszard Sabina Sandra Sebastian Szymon Sławomir Stanisław Stefan Sylwia Szczepan Tadeusz Teresa Tomasz
 Tymon Tymoteusz Urszula Wacław Waldemar Wanda Weronika Wiesław Wiktor Wiktoria Wincenty Witold Władysław Wojciech
 Zbigniew Zdzisław Zenon Zofia Zuzanna Zygmunt Żaneta
-""".split())
+Adela Albert Alan Alfred Ambroży Aureliusz Benedykt Bianka Blanka Borys Brunon Dagmara Daria Diana Dobromir
+Dorian Eliza Emma Eryk Ernest Eugeniusz Felicja Feliks Franciszka Fryderyk Genowefa Gerard Gustaw Hieronim
+Hilary Irmina Iwo Jagoda Jeremi Józefa Judyta Juliusz Kajetan Karina Klemens Kornel Leonard Lidia Lucjan
+Ludmiła Maryla Matylda Melania Melchior Miłosz Mirella Nataniel Nina Olga Oskar Regina Remigiusz Rozalia Sara
+Seweryn Stanisława Stefania Sylwester Tamara Teodor Tobiasz Wiesława Zdzisława Zenobia Zenobiusz Ziemowit
+"""
+
+_VOWELS = set("aeiouy")
+
+
+def _first_name_forms(name: str) -> set[str]:
+    """Nominative and genitive of a first name, folded (Tomasz -> tomasz, tomasza)."""
+    f = fold(name)
+    forms = {f}
+    if f.endswith("a"):
+        if f.endswith(("sia", "cia", "zia", "nia")):
+            forms.add(f[:-1])                               # Kasia -> Kasi
+        elif f.endswith("ia"):
+            forms.add(f[:-1] + "i")                         # Julia -> Julii
+        elif f.endswith("ja"):
+            forms.add(f[:-2] + "i" if f[-3] in _VOWELS else f[:-1] + "i")   # Maja -> Mai, Łucja -> Łucji
+        elif f.endswith(("ka", "ga")):
+            forms.add(f[:-1] + "i")                         # Kinga -> Kingi
+        else:
+            forms.add(f[:-1] + "y")                         # Anna -> Anny
+    elif name.endswith("eł"):
+        forms.add(f[:-2] + "la")                            # Paweł -> Pawła
+    elif f.endswith("ek"):
+        forms.add(f[:-2] + "ka")                            # Marek -> Marka
+    elif f.endswith("y"):
+        forms.add(f[:-1] + "ego")                           # Ignacy -> Ignacego
+    elif f.endswith("i"):
+        forms.add(f + "ego")                                # Antoni -> Antoniego
+    elif f.endswith("o"):
+        forms.add(f[:-1] + "a")                             # Iwo -> Iwa
+    else:
+        forms.add(f + "a")                                  # Jan -> Jana
+    return forms
+
+
+FIRST_NAME_LIST: tuple[str, ...] = tuple(dict.fromkeys(_FIRST_NAMES_TEXT.split()))
+FIRST_NAMES = frozenset(form for name in FIRST_NAME_LIST for form in _first_name_forms(name))
 
 # Words that look like names when capitalized but are not persons (folded):
 # months, days, cities, institutions and the usual vocabulary of transfer titles
@@ -185,6 +229,7 @@ bank banku urzad urzedu skarbowy skarbowego zaklad zakladu ubezpieczen spoleczny
 sadowego sad sadu sadzie rejonowy rejonowym rejonowego okregowy okregowego gmina gminy miasto miasta powiat
 wojewodztwo starostwo ministerstwo narodowy narodowego fundusz funduszu zdrowia
 rachunkowe rachunkowy ksiegowe ksiegowy bilans
+pan pani pana panu pania panem panie
 """.split())
 
 # Words that make a name a company (folded, without dots).
@@ -204,68 +249,15 @@ def is_capital_company(name: str | None) -> bool:
     return bool(name) and bool(_CAPITAL_COMPANY_RE.search(fold(name)))
 
 
-# Sensitive words added by the core to the extension's list (stems are matched,
-# so "komornik" also finds "komornicze", "komornika").
-EXTRA_SENSITIVE_WORDS: tuple[str, ...] = (
-    "zajęcie wynagrodzenia",
-    "egzekucja",
-    "dłużnik",
-    "choroba",
-    "leczenie",
-    "szpital",
-    "lekarz",
-    "terapia",
-    "rehabilitacja",
-    "niepełnosprawność",
-    "ciąża",
-    "składka związkowa",
-    "wyznanie",
-)
-
-_SUFFIXES = tuple(sorted(
-    {"owego", "owemu", "owych", "owymi", "ami", "ach", "owi", "owa", "owe", "owy", "ego", "emu", "ich", "ymi",
-     "imi", "om", "ow", "ie", "ia", "ii", "iu", "ek", "ki", "y", "i", "a", "e", "o", "u"},
-    key=len, reverse=True,
-))
-
-
-def stem(word: str) -> str:
-    """Crude Polish stem: folded word without its inflection ending (min. 4 letters)."""
-    w = fold(word)
-    for suffix in _SUFFIXES:
-        if w.endswith(suffix) and len(w) - len(suffix) >= 4:
-            return w[: -len(suffix)]
-    return w
-
-
-def _stems_match(word_stem: str, token_stem: str) -> bool:
-    if len(word_stem) < 4 or len(token_stem) < 4:
-        return word_stem == token_stem
-    common = 0
-    for a, b in zip(word_stem, token_stem, strict=False):
-        if a != b:
-            break
-        common += 1
-    # "komornik" ~ "komornicze": alternation in the last letter of the stem
-    return common >= max(4, len(word_stem) - 1)
+# Sensitive words live in kasa.core.sensitive (stems with Polish inflection, table
+# sensitive_term); these wrappers keep the phase 2 API.
 
 
 def sensitive_hits(text: str | None, words: Iterable[str]) -> list[str]:
-    """Sensitive words (or phrases) found in ``text``, matched by stem."""
-    if not text:
-        return []
-    tokens = [stem(t) for t in _words(text)]
-    hits = []
-    for phrase in dict.fromkeys(words):
-        parts = [stem(p) for p in _words(phrase)]
-        if not parts:
-            continue
-        n = len(parts)
-        for i in range(len(tokens) - n + 1):
-            if all(_stems_match(parts[j], tokens[i + j]) for j in range(n)):
-                hits.append(phrase)
-                break
-    return hits
+    """Sensitive words (or phrases) found in ``text``, matched by stem (kasa.core.sensitive)."""
+    from kasa.core.sensitive import find_sensitive
+
+    return find_sensitive(text, words)
 
 
 def is_sensitive(text: str | None, words: Iterable[str]) -> bool:
@@ -273,10 +265,10 @@ def is_sensitive(text: str | None, words: Iterable[str]) -> bool:
 
 
 def sensitive_words_for(extension_words: Sequence[str] | None) -> list[str]:
-    """The extension's list (which already includes the core baseline) plus core extras."""
-    from kasa.core.extension import BASELINE_SENSITIVE_WORDS
+    """The core list (kasa.core.sensitive.CORE_TERMS) plus the extension's words."""
+    from kasa.core.sensitive import code_terms
 
-    return list(dict.fromkeys([*BASELINE_SENSITIVE_WORDS, *(extension_words or ()), *EXTRA_SENSITIVE_WORDS]))
+    return [t.term for t in code_terms(extension_words)]
 
 
 # ---------------------------------------------------------------------------
@@ -481,8 +473,8 @@ def _detect_persons(text: str, context: PseudonymContext, *, company_mode: bool 
                     continue
                 folded = [fold(w[2]) for w in window]
                 key = " ".join(sorted(folded))
-                if key in context.persons:
-                    hit = (n, "known_person", key)
+                if key in context.persons and not all(f in context.company_tokens for f in folded):
+                    hit = (n, "known_person", key)      # (a key made only of company words is a company)
                     break
                 firsts = [f for f in folded if f in FIRST_NAMES]
                 others = [f for f in folded if f not in FIRST_NAMES]
@@ -490,10 +482,14 @@ def _detect_persons(text: str, context: PseudonymContext, *, company_mode: bool 
                         and not any(f in COMPANY_MARKERS for f in folded):
                     hit = (n, "first_name", key)
                     break
-                if (not company_mode and n == 2 and all(w[3] == "title" for w in window)
-                        and not firsts and all(not _is_safe(f, context) for f in folded)):
-                    hit = (n, "capitalized_pair", key)
+                if (not company_mode and n == 2 and all(not _is_safe(f, context) for f in folded)
+                        and _context_evidence(text, window[0][0], window[-1][1])):
+                    hit = (n, "context", key)
                     break
+            if hit is None and not company_mode and _HONORIFIC_RE.search(_line_before(text, run[i][0])):
+                folded_one = fold(run[i][2])
+                if not _is_safe(folded_one, context) and folded_one not in FIRST_NAMES:
+                    hit = (1, "context", folded_one)            # "Pani Kowalska"
             if hit is not None:
                 n, method, key = hit
                 start, end = run[i][0], run[i + n - 1][1]
@@ -512,6 +508,24 @@ def _detect_persons(text: str, context: PseudonymContext, *, company_mode: bool 
                     found.append(Detection("person", start, end, word, person.normalized, "known_person"))
                     break
     return found
+
+
+# Context that makes two capitalized words a person without a first name from the list.
+_HONORIFIC_RE = re.compile(r"(?:^|[\s(,;:/])(?:pan|pani|pana|panu|pania|panem|panie|p\.|sz\.\s?p\.|ob\.)\s*$",
+                           re.IGNORECASE)
+_BEFORE_RE = re.compile(r"\bblik\b[\s:,-]*(?:dla|na rzecz|od)?\s*$", re.IGNORECASE)
+_AFTER_RE = re.compile(r"^[\s,;:(-]{0,3}(?:tel\b|tel\.|telefon|pesel)", re.IGNORECASE)
+
+
+def _line_before(text: str, start: int) -> str:
+    cut = max(text.rfind("\n", 0, start), text.rfind("|", 0, start))
+    return fold(text[cut + 1:start])
+
+
+def _context_evidence(text: str, start: int, end: int) -> bool:
+    before = _line_before(text, start)
+    after = text[end:end + 24].split("\n", 1)[0].split("|", 1)[0]
+    return bool(_HONORIFIC_RE.search(before) or _BEFORE_RE.search(before) or _AFTER_RE.search(after))
 
 
 def _surname_matches(surname: str, token: str) -> bool:
@@ -550,9 +564,18 @@ def detect(text: str, context: PseudonymContext | None = None) -> list[Detection
 # ---------------------------------------------------------------------------
 
 
+# Why a value was taken for a person (pseudonym_key.basis, migration 0008).
+EVIDENCE_BASES = frozenset({"registered", "first_name", "context", "known_person"})
+
+
 def pseudonym_for(conn: psycopg.Connection, company_id: UUID, kind: str, value: str, *,
-                  normalized: str | None = None, context: PseudonymContext | None = None) -> str:
-    """The pseudonym of a value, created on first sight (stable: same value -> same code)."""
+                  normalized: str | None = None, context: PseudonymContext | None = None,
+                  basis: str | None = None) -> str:
+    """The pseudonym of a value, created on first sight (stable: same value -> same code).
+
+    ``basis`` (recorded with a new key): why the value is personal data - for a
+    person ``registered``, ``first_name``, ``context`` or ``known_person``.
+    """
     if kind not in KINDS:
         raise ValueError(f"unknown pseudonym kind: {kind!r}")
     normalized = normalized if normalized is not None else normalize_value(kind, value)
@@ -572,11 +595,11 @@ def pseudonym_for(conn: psycopg.Connection, company_id: UUID, kind: str, value: 
                 candidate = f"{PREFIX[kind]}-{digest[:length]}"
                 conn.execute(
                     """
-                    INSERT INTO pseudonym_key (company_id, kind, pseudonym, value_hash, value_encrypted)
-                    VALUES (%s, %s, %s, %s, pgp_sym_encrypt(%s, %s))
+                    INSERT INTO pseudonym_key (company_id, kind, pseudonym, value_hash, value_encrypted, basis)
+                    VALUES (%s, %s, %s, %s, pgp_sym_encrypt(%s, %s), %s)
                     ON CONFLICT DO NOTHING
                     """,
-                    (company_id, kind, candidate, digest, value.strip(), _encryption_key()),
+                    (company_id, kind, candidate, digest, value.strip(), _encryption_key(), basis),
                 )
                 row = conn.execute(
                     "SELECT pseudonym FROM pseudonym_key WHERE company_id = %s AND kind = %s AND value_hash = %s",
@@ -599,7 +622,7 @@ def pseudonym_for(conn: psycopg.Connection, company_id: UUID, kind: str, value: 
 def register_person(conn: psycopg.Connection, company_id: UUID, name: str,
                     context: PseudonymContext | None = None) -> str:
     """Pseudonym of a person (e.g. for ``l1_internal_record.person_pseudonym``); the person becomes known."""
-    return pseudonym_for(conn, company_id, "person", name, context=context)
+    return pseudonym_for(conn, company_id, "person", name, context=context, basis="registered")
 
 
 def load_context(conn: psycopg.Connection, company_id: UUID) -> PseudonymContext:
@@ -615,14 +638,32 @@ def load_context(conn: psycopg.Connection, company_id: UUID) -> PseudonymContext
         ).fetchall()
         persons = conn.execute(
             """
-            SELECT pgp_sym_decrypt(value_encrypted, %s) FROM pseudonym_key
-             WHERE company_id = %s AND kind = 'person' AND value_encrypted IS NOT NULL
+            SELECT pgp_sym_decrypt(k.value_encrypted, %s), k.basis,
+                   EXISTS (SELECT 1 FROM l1_internal_record r
+                            WHERE r.company_id = k.company_id AND r.person_pseudonym = k.pseudonym)
+              FROM pseudonym_key k
+             WHERE k.company_id = %s AND k.kind = 'person' AND k.value_encrypted IS NOT NULL
             """,
             (_encryption_key(), company_id),
         ).fetchall()
+        person_parties = conn.execute(
+            """
+            SELECT name FROM l1_counterparty
+             WHERE company_id = %s AND superseded_by IS NULL AND kind = 'person' AND name IS NOT NULL
+            """,
+            (company_id,),
+        ).fetchall()
     except psycopg.Error as exc:
         raise PseudonymizationError(f"bramka pseudonimizacji nie działa: {exc}") from exc
-    for (name,) in persons:
+    party_keys = {normalize_value("person", name) for (name,) in person_parties}
+    for name, basis, in_sheet in persons:
+        # Keys made before 0008 have no basis: a person only with evidence (a first name,
+        # a row of an internal file, a bank counterparty of kind person); old false
+        # "persons" (product or street names) stay in the key table but are not used.
+        if (basis in EVIDENCE_BASES or in_sheet or normalize_value("person", name) in party_keys
+                or any(fold(w) in FIRST_NAMES for w in _words(name))):
+            context.add_person(name)
+    for (name,) in person_parties:
         context.add_person(name)
     for (name,) in rows:
         context.add_company_name(name)
@@ -639,7 +680,8 @@ def pseudonymize_text(conn: psycopg.Connection, company_id: UUID, text: str | No
     out: list[str] = []
     pos = 0
     for d in detect(text, context):
-        pseudonym = pseudonym_for(conn, company_id, d.kind, d.value, normalized=d.normalized, context=context)
+        pseudonym = pseudonym_for(conn, company_id, d.kind, d.value, normalized=d.normalized, context=context,
+                                  basis=d.method)
         out.append(text[pos:d.start])
         out.append(pseudonym)
         pos = d.end
@@ -648,13 +690,21 @@ def pseudonymize_text(conn: psycopg.Connection, company_id: UUID, text: str | No
     return "".join(out), hits
 
 
-def depseudonymize(conn: psycopg.Connection, company_id: UUID, text: str | None, *, role: str) -> str | None:
-    """Put the original values back. Only for internal roles (never the agent or a model)."""
+def depseudonymize(conn: psycopg.Connection, company_id: UUID, text: str | None, *, role: str,
+                   only: Iterable[str] | None = None) -> str | None:
+    """Put the original values back. Only for internal roles (never the agent or a model).
+
+    ``only``: reverse just these codes (e.g. those present in the text sent to a model -
+    a model may answer with a code it never saw); any other code stays as it is.
+    """
     if role not in INTERNAL_ROLES:
         raise PermissionError(f"rola {role!r} nie może odwracać pseudonimów")
     if text is None:
         return None
-    codes = sorted({m.group(0) for m in PSEUDONYM_RE.finditer(text)})
+    codes = {m.group(0) for m in PSEUDONYM_RE.finditer(text)}
+    if only is not None:
+        codes &= set(only)
+    codes = sorted(codes)
     if not codes:
         return text
     rows = conn.execute(

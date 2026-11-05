@@ -88,7 +88,8 @@ kolejności księgowania, a bez salda otwarcia - wstecz od salda zamknięcia, i 
 
 **Idempotencja i wersje.** Ten sam zakres pobrany ponownie: te same bajty → ten sam `l0_raw`; ta sama
 operacja (po `entry_reference`, a bez niego po `fingerprint`) → bez zmian. Podbicie
-`kasa.core.bank.ingest.PARSER_SCHEMA_VERSION` (zmiana parsera lub ekstrakcji) → przy następnym pobraniu każda
+`kasa.core.bank.ingest.PARSER_SCHEMA_VERSION` (zmiana parsera lub ekstrakcji; obecnie 2 - telefony w
+`extracted` tylko jako pseudonimy) → przy następnym pobraniu każda
 operacja dostaje nowy wiersz z nowym `schema_version`, a stary wskazuje go przez `superseded_by`. Te same
 operacje z EB i z camt.053 (ten sam `NtryRef`) to jeden fakt.
 
@@ -128,7 +129,7 @@ okres wyciągu. Rachunek nieznany bazie dostaje rodzaj `current` (albo `--kind v
 | `contract_refs`, `case_refs`, `other_refs` | `umowa 14/2026`, `Umowa o dzielo 07/2026`; `KM 1187/26` (komornik); `postanowienie NUS 1471-SPV.4012.37.2026` - nie są brane za faktury |
 | `installment` | `rata 10/36` |
 | `card`, `original_amount` | `5375********4417`; `Kwota oryg. 99,00 EUR, kurs 4,4154` |
-| `phones` | `+48 500 085 853` → numer i pseudonim |
+| `phones` | `+48 500 085 853` → w faktach tylko pseudonim `T-…` (od wersji parsera 2; jawny numer zostaje wyłącznie w `title_raw`) |
 | `operator` | Revolut, PayU, Stripe, PayPal, Przelewy24, Tpay, Wise, Adyen (z nadawcy albo tytułu) z referencją, gdy jest |
 | `persons`, `sensitive_words`, `fx`, `op_type_reason` | pseudonimy osób z tytułu, znalezione słowa wrażliwe, kursy, uzasadnienie typu |
 
@@ -178,9 +179,13 @@ zwraca tekst z kodami i listę trafień (`PseudonymHit`: rodzaj, pozycja, warto�
   `500-085-853`, `+48500085853`, stacjonarne), e-maile, PESEL (suma kontrolna i data), adresy (`ul. Długa
   12/4, 00-238 Warszawa`) oraz osoby: (1) osoby znane - każdy wiersz `person` w `pseudonym_key` (odbiorcy
   BLIK i wynagrodzeń z banku, osoby z arkuszy PM) w dowolnej kolejności słów, także samo nazwisko w odmianie
-  („Kuczyńskiej”); (2) polskie imię obok słowa z wielkiej litery, które nie jest słowem bezpiecznym ani słowem
-  nazwy firmy z rejestru kontrahentów; (3) dwa słowa z wielkiej litery spoza obu słowników. Słownik
-  bezpieczny: miesiące, dni, miasta (z odmianą), słownictwo tytułów i nazw firm. Nazwa spółki kapitałowej
+  („Kuczyńskiej”); (2) polskie imię (ok. 330 imion z dopełniaczem: „Tomasza”, „Anny”, „Pawła”) obok słowa z
+  wielkiej litery, które nie jest słowem bezpiecznym ani słowem nazwy firmy z rejestru kontrahentów;
+  (3) kontekst: „Pan/Pani/P.” przed nazwą, „BLIK” przed nią albo „tel.”/„PESEL” zaraz po niej. Od fazy 3
+  dwa słowa z wielkiej litery **bez takiego dowodu nie są osobą** („Google Workspace”, „Rogerson's Quay”,
+  „Scena Pro” zostają jawne). Osoba znana = osoba zarejestrowana (arkusz, kontrahent `person`) albo klucz z
+  dowodem (`pseudonym_key.basis`); stare klucze bez dowodu zostają w tabeli (nic nie kasujemy), ale nie są
+  używane. Słownik bezpieczny: miesiące, dni, miasta (z odmianą), słownictwo tytułów i nazw firm. Nazwa spółki kapitałowej
   (sp. z o.o., S.A., GmbH…) jest brana w całości; w nazwie jednoosobowej działalności („Kadr Studio Paweł
   Wierzbicki”) osoba jest wycinana.
 * **Stabilność:** ta sama wartość → ten sam kod (`P-7f3a` osoba, `I-…` IBAN, `T-…` telefon, `E-…` e-mail,
@@ -195,9 +200,11 @@ zwraca tekst z kodami i listę trafień (`PseudonymHit`: rodzaj, pozycja, warto�
 * **Dla dokumentów i arkuszy:** `register_person(conn, company_id, "Nazwisko Imię")` zwraca pseudonim do
   `l1_internal_record.person_pseudonym` i od razu czyni osobę „znaną” dla tytułów przelewów.
 * **Słowa wrażliwe:** lista rdzenia (`zdrowie`, `związki`, `komornik`, `alimenty`) + lista rozszerzenia firmy
-  + uzupełnienie rdzenia (`zajęcie wynagrodzenia`, `egzekucja`, `dłużnik`, `choroba`, `leczenie`…), dopasowanie
-  po rdzeniu słowa, nie po podciągu („komornicze”, „alimentów”, „zwolnienia lekarskiego”). Trafienie ustawia
-  `sensitive = true` i zapisuje słowa w `extracted.sensitive_words`: taki przelew omija model i idzie do kolejki.
+  + uzupełnienie rdzenia (`zajęcie wynagrodzenia`, `egzekucja`, `dłużnik`, `choroba`, `leczenie`…), od fazy 3
+  w tabeli `sensitive_term` i w `kasa.core.sensitive` (stemmer z odmianą polską, `docs/SEMANTYKA.md`),
+  dopasowanie po rdzeniu słowa, nie po podciągu („komornicze”, „alimentów”, „związkowej”). Trafienie ustawia
+  `sensitive = true` i zapisuje słowa w `extracted.sensitive_words`: taki przelew omija model (semantyka nie
+  czyta nawet jego tytułu) i idzie do kolejki.
 
 ## 7. Retencja (`kasa/core/retention.py`, Krok 9, D6)
 

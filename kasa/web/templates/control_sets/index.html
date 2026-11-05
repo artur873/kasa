@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Zbiory kontrolne - {{ company.name }}{% endblock %}
+{% block where %}{{ company.name }}{% endblock %}
+{% block body %}
+<h1>Zbiory kontrolne</h1>
+<p class="muted">Etykietujesz bez podglądu tego, co myśli system - z tych etykiet kalibrujemy progi automatu.</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+{% for s in sets %}
+<div class="card">
+  <div><strong>{{ s.name }}</strong> <span class="muted">({{ "przelewy" if s.kind == "transaction" else "koszty" }})</span></div>
+  <div class="progress">{{ s.labeled }}/{{ s.total }}{% if s.completed_at %} - zakończony{% endif %}</div>
+  <div class="bar"><span style="width: {{ (100 * s.labeled / s.total) | round(0) if s.total else 0 }}%"></span></div>
+  {% if s.completed_at %}
+  <a class="button secondary" href="/control-sets/{{ s.id }}/done">Wynik</a>
+  {% else %}
+  <a class="button" href="/control-sets/{{ s.id }}/card">Etykietuj</a>
+  {% endif %}
+</div>
+{% else %}
+<div class="card muted">Brak zbiorów. Utwórz pierwszy poniżej albo: <code>python -m kasa control-set create --company {{ company.slug }} --kind transaction --size 600</code></div>
+{% endfor %}
+<form class="card" method="post" action="/control-sets">
+  <input type="hidden" name="company" value="{{ company.slug }}">
+  <fieldset>
+    <legend>Nowy zbiór</legend>
+    <div class="choices two">
+      <label class="choice"><input type="radio" name="kind" value="transaction" checked><span>Przelewy</span></label>
+      <label class="choice"><input type="radio" name="kind" value="cost"><span>Koszty</span></label>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>Liczba pozycji</legend>
+    <input type="number" name="size" value="600" min="1" inputmode="numeric">
+    <p class="muted">Gdy danych jest mniej, zbiór obejmie wszystkie. Co ok. 50 pozycji trafi się pozycja ze znaną odpowiedzią.</p>
+  </fieldset>
+  <button type="submit">Utwórz</button>
+</form>
+{% endblock %}

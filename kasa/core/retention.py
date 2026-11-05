@@ -8,7 +8,9 @@ office keeps the books). What kasa keeps and for how long:
   facts remain traceable and the same file is never stored again);
 * records: contract + 1 year, then persons are anonymized - their pseudonym keys
   are shredded (``value_encrypted -> NULL``): pseudonyms stay, nobody can reverse them;
-* model prompts and answers: 90 days; access log: 3 years (enforced where those logs live).
+* model prompts and answers: 90 days - ``llm_call_payload`` is emptied by
+  ``kasa_expire_llm_payloads()`` (``expire_llm_payloads``); the call log keeps only
+  digests and lengths; access log: 3 years (enforced where those logs live).
 
 L0 stays append-only: the purge is the only change the database allows, it is
 done by one SECURITY DEFINER function and every purge is logged in ``l0_purge_log``.
@@ -88,3 +90,10 @@ def shred_pseudonyms(conn: psycopg.Connection, company_id: UUID, *, kinds: tuple
         """,
         (company_id, list(kinds), created_before, created_before),
     ).rowcount
+
+
+def expire_llm_payloads(conn: psycopg.Connection, *, now: datetime | None = None) -> int:
+    """Empty prompts and answers of model calls past their 90 days (``kasa_expire_llm_payloads``)."""
+    if now is None:
+        return conn.execute("SELECT kasa_expire_llm_payloads()").fetchone()[0]
+    return conn.execute("SELECT kasa_expire_llm_payloads(%s)", (now,)).fetchone()[0]

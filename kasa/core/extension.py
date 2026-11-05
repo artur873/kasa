@@ -414,9 +414,10 @@ class Extension(ABC):
             raise ExtensionError(f"Rozszerzenie {self.slug} nie ma mapowania importu {key!r}") from None
 
     def is_sensitive(self, text: str) -> bool:
-        """True when the text contains a sensitive word (it must bypass the model)."""
-        folded = text.casefold()
-        return any(word.casefold() in folded for word in self.sensitive_words)
+        """True when the text contains a sensitive word (it must bypass the model), matched by stem."""
+        from kasa.core.sensitive import code_terms, find_sensitive
+
+        return bool(find_sensitive(text, code_terms(self.sensitive_words)))
 
 
 class ExtensionConfig(BaseModel):

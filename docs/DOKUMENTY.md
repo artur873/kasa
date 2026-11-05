@@ -123,7 +123,8 @@ Pola rdzenia dla dokumentu: `number_raw`, `ksef_number`, `kind`, `direction`, `i
 „korekta…” → korekta, „zaliczk…” → zaliczkowa). Nagłówki porównujemy luźno (wielkość liter, ogonki, spacje).
 Mapowanie arkusza PM (`pm_sheet`) jest w tym samym pliku; nowa firma dodaje swoje bez zmiany kodu.
 
-Osoba z arkusza dostaje pseudonim z bramki pseudonimizacji (`kasa.core.pseudonym.register_person`);
+Osoba z arkusza dostaje pseudonim z bramki pseudonimizacji (`kasa.core.pseudonym.register_person`,
+`pseudonym_key.basis = 'registered'` - osoba znana także dla tytułów przelewów);
 jeśli moduł lub tabela kluczy nie działa, stabilny kod HMAC nazwiska (`KASA_PSEUDONYM_SECRET`) - tymczasowo,
 z adnotacją `pseudonym_method` w dowodzie.
 
@@ -136,12 +137,15 @@ Najdroższy i najmniej pewny kanał, dlatego:
 - **Koszt** pierwszego importu ≈ liczba PDF-ów × (tokeny wejścia + wyjścia) × cena modelu z cennika Vertex AI.
   Jedna strona faktury to rząd 1-2 tys. tokenów wejścia i kilkuset wyjścia (tekst, nie obraz). Przed
   importem archiwum policz pliki (`import-pdf` na mocku nic nie kosztuje) i zatwierdź szacunek.
-- **Pseudonimizacja przed wywołaniem.** Tekst PDF przechodzi przez `kasa.core.pseudonym.pseudonymize_text`
-  (nazwiska, adresy, telefony, IBAN-y, e-maile → kody). Gdy bramka nie istnieje albo zgłasza błąd,
-  **wywołania modelu, który opuszcza maszynę, nie ma** (`PseudonymizationUnavailable`, plik zostaje w L0,
-  status `blocked`). Wyjątek: mock (`KASA_LLM_PROVIDER=mock`) działa lokalnie. Model nigdy nie dostaje
-  surowego PDF-u (bajtów nie da się spseudonimizować). Kody w odpowiedzi modelu wracają do wartości po
-  naszej stronie (`depseudonymize`, rola wewnętrzna). Tekst ze słowem z listy wrażliwej omija model w ogóle.
+- **Bramka przed wywołaniem (od fazy 3).** Tekst PDF idzie do modelu wyłącznie przez
+  `kasa.core.semantics.gate.guarded_complete` (cel `pdf_invoice`, `docs/SEMANTYKA.md`): słowo z listy
+  wrażliwej omija model w ogóle, potem pseudonimizacja (nazwiska, adresy, telefony, IBAN-y, e-maile → kody),
+  druga linia obrony (czy nie został IBAN/telefon/PESEL/e-mail) i wpis w `llm_call_log`. Gdy bramka nie
+  istnieje albo zgłasza błąd, **wywołania nie ma - także dla modelu lokalnego (mock)**; plik zostaje w L0,
+  status `blocked`. Model nigdy nie dostaje surowego PDF-u (bajtów nie da się spseudonimizować). Kody w
+  odpowiedzi modelu wracają do wartości po naszej stronie (`depseudonymize`, rola wewnętrzna) - **tylko te,
+  które były w tekście wysłanym** (model mógłby odpowiedzieć cudzym kodem). Odczyt regexem modelu testowego
+  (nieznany plik) ma `method = 'code'`, nie `model`.
 - **Kontrola kodu:** pozycje muszą sumować się do kwot razem (netto, VAT, brutto). Niezgodność: obserwacja
   i dokument są zapisane, ale z flagą `needs_review` (kolejka przeglądu).
 - **Kurs:** faktura walutowa trzyma walutę; PLN liczymy z kursu NBP z ostatniego dnia przed datą

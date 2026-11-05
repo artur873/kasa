@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.name }} - {{ position }}/{{ item.total }}{% endblock %}
+{% block where %}{{ meta.name }}{% endblock %}
+{% block body %}
+<div class="progress">{{ position }}/{{ item.total }}</div>
+<div class="bar"><span style="width: {{ (100 * item.labeled / item.total) | round(0) if item.total else 0 }}%"></span></div>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<div class="card">
+{% if facts.type == "transaction" %}
+  <div class="amount{{ ' in' if facts.amount_minor > 0 else '' }}">{{ facts.amount }}</div>
+  <div class="muted">{{ facts.direction }} · {{ facts.booking_date }} · {{ facts.op_type }}</div>
+  <div class="title">{{ facts.title_raw or "(bez tytułu)" }}</div>
+  <dl class="facts">
+    <dt>Kontrahent</dt><dd>{{ facts.counterparty_name_raw or "-" }}</dd>
+    <dt>Rachunek</dt><dd>{{ facts.account_iban }} ({{ facts.account_kind }})</dd>
+  </dl>
+{% elif facts.type == "document" %}
+  <div class="amount">{{ facts.amount }}</div>
+  <div class="muted">{{ facts.number_raw }} · {{ facts.issue_date }} · {{ facts.kind }}</div>
+  <dl class="facts">
+    <dt>Sprzedawca</dt><dd>{{ facts.seller_name or "-" }}{% if facts.seller_nip %} (NIP {{ facts.seller_nip }}){% endif %}</dd>
+    {% if facts.sale_date %}<dt>Sprzedaż</dt><dd>{{ facts.sale_date }}</dd>{% endif %}
+  </dl>
+  <ul class="lines">{% for line in facts.lines %}<li>{{ line.name }} - {{ line.amount }}</li>{% endfor %}</ul>
+{% else %}
+  <div class="amount">{{ facts.amount }}</div>
+  <div class="muted">wiersz arkusza · {{ facts.record_date }} · {{ facts.file }}</div>
+  <dl class="facts">
+    {% for key, value in facts.fields.items() %}<dt>{{ key }}</dt><dd>{{ value }}</dd>{% endfor %}
+  </dl>
+{% endif %}
+</div>
+
+{% if meta.kind == "transaction" %}
+<form class="card" method="get" action="/control-sets/{{ meta.id }}/items/{{ item.id }}">
+  <div class="row">
+    <input type="search" name="q" value="{{ query }}" placeholder="Szukaj dokumentu: numer lub kwota" aria-label="Szukaj dokumentu">
+    <button class="secondary" type="submit" style="flex: 0 0 auto; width: auto;">Szukaj</button>
+  </div>
+</form>
+{% endif %}
+
+<form method="post" action="/control-sets/{{ meta.id }}/items/{{ item.id }}">
+{% if meta.kind == "transaction" %}
+  <fieldset class="card">
+    <legend>Status końcowy</legend>
+    <div class="choices two">
+    {% for value, text in statuses.items() %}
+      <label class="choice"><input type="radio" id="status-{{ value }}" name="status" value="{{ value }}" required
+        {{ 'checked' if item.label and item.label.status == value else '' }}><span>{{ text }}</span></label>
+    {% endfor %}
+    </div>
+  </fieldset>
+  <fieldset class="card only-matched">
+    <legend>Dokument</legend>
+    <div class="choices">
+    {% for doc in documents %}
+      <label class="choice doc"><input type="checkbox" name="documents" value="{{ doc.type }}:{{ doc.id }}"><span>
+        {{ doc.number_raw or "-" }} · {{ doc.amount }} · {{ doc.issue_date }}{% if doc.party %} · {{ doc.party }}{% endif %}
+        {% if doc.type == "internal_record" %} (arkusz){% endif %}</span></label>
+    {% else %}
+      <p class="muted">{{ "Brak wyników - zmień wyszukiwanie." if query else "Brak otwartych dokumentów tego kontrahenta - użyj wyszukiwarki." }}</p>
+    {% endfor %}
+      <label class="choice"><input type="checkbox" name="other_document" value="1"><span>Inny dokument (nie ma go na liście)</span></label>
+    </div>
+  </fieldset>
+  <fieldset class="card only-nodoc">
+    <legend>Rodzaj (bez dokumentu)</legend>
+    <div class="choices two">
+    {% for value, text in subtypes.items() %}
+      <label class="choice"><input type="radio" name="subtype" value="{{ value }}"><span>{{ text }}</span></label>
+    {% endfor %}
+    </div>
+  </fieldset>
+{% else %}
+  <fieldset class="card">
+    <legend>Kategoria</legend>
+    <select name="category">
+      <option value="">(wybierz)</option>
+      {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+    </select>
+  </fieldset>
+  <fieldset class="card">
+    <legend>Obiekt kosztowy</legend>
+    <input type="text" name="cost_object" list="names" placeholder="nazwa, np. Gala ACME 2026" autocomplete="off">
+    <datalist id="names">{% for n in names %}<option value="{{ n }}">{% endfor %}</datalist>
+    <div class="choices" style="margin-top: 8px;">
+      <label class="choice"><input type="checkbox" name="unassigned" value="1"><span>UNASSIGNED - koszt ogólny</span></label>
+    </div>
+    <p class="muted">Podział (opcjonalnie), linia na obiekt: <code>nazwa; 20%</code></p>
+    <textarea name="split" placeholder="Roadshow Nordis Gdańsk; 20%"></textarea>
+  </fieldset>
+{% endif %}
+  <fieldset class="card">
+    <legend>Uwaga (opcjonalnie)</legend>
+    <input type="text" name="note" autocomplete="off">
+  </fieldset>
+  <button type="submit">Zapisz i dalej</button>
+</form>
+<p><a class="button secondary" href="/control-sets/{{ meta.id }}/card?after={{ item.order_no }}">Pomiń na razie</a></p>
+{% endblock %}

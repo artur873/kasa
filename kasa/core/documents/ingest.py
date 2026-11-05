@@ -109,8 +109,23 @@ def get_company_nip(conn: psycopg.Connection, company_id: UUID) -> str | None:
     return row[0] if row else None
 
 
-def ensure_company_nip(conn: psycopg.Connection, company_id: UUID, nip: str | None, *, source: str) -> str | None:
-    """Remember our NIP the first time a trusted source (KSeF context, JPK Podmiot1) names it."""
+def _has_nip_evidence_column(conn: psycopg.Connection) -> bool:
+    return conn.execute(
+        """
+        SELECT EXISTS (SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = current_schema() AND table_name = 'company'
+                          AND column_name = 'nip_evidence')
+        """
+    ).fetchone()[0]
+
+
+def ensure_company_nip(conn: psycopg.Connection, company_id: UUID, nip: str | None, *, source: str,
+                       raw_id: UUID | None = None) -> str | None:
+    """Remember our NIP the first time a trusted source (KSeF context, JPK Podmiot1) names it.
+
+    The first setting also records where it came from (``company.nip_evidence``,
+    migration 0008): the source, the raw file (``raw_id``, when there is one) and when.
+    """
     if not nip:
         return get_company_nip(conn, company_id)
     nip = normalize_nip(nip)
@@ -118,7 +133,17 @@ def ensure_company_nip(conn: psycopg.Connection, company_id: UUID, nip: str | No
     if current is not None and current != nip:
         raise CompanyNipConflict(f"{source}: NIP {nip} różni się od NIP-u firmy {current}")
     if current is None:
-        conn.execute("UPDATE company SET nip = %s WHERE id = %s AND nip IS NULL", (nip, company_id))
+        if _has_nip_evidence_column(conn):
+            conn.execute(
+                """
+                UPDATE company SET nip = %s,
+                       nip_evidence = jsonb_build_object('source', %s::text, 'raw_id', %s::text, 'set_at', now())
+                 WHERE id = %s AND nip IS NULL
+                """,
+                (nip, source, str(raw_id) if raw_id else None, company_id),
+            )
+        else:
+            conn.execute("UPDATE company SET nip = %s WHERE id = %s AND nip IS NULL", (nip, company_id))
         log.info("NIP firmy ustalony na %s (źródło: %s)", nip, source)
     if capabilities(conn).own_counterparty_function:
         # The company as its own counterparty (0006) learns the NIP too.
@@ -834,10 +859,16 @@ def ingest_jpk(conn: psycopg.Connection, company: Any, payload: bytes, *, filena
     report = IngestReport(channel="jpk")
     caps = capabilities(conn)
     parsed = parse_jpk(payload, company_nip=get_company_nip(conn, company.id))
-    ensure_company_nip(conn, company.id, parsed.subject_nip, source=f"{parsed.form} Podmiot1")
+    current_nip = get_company_nip(conn, company.id)
+    if current_nip is not None and parsed.subject_nip and normalize_nip(parsed.subject_nip) != current_nip:
+        # a file of another company is refused before anything is stored
+        raise CompanyNipConflict(f"{parsed.form} Podmiot1: NIP {normalize_nip(parsed.subject_nip)} "
+                                 f"różni się od NIP-u firmy {current_nip}")
     raw = store_raw(conn, company.id, "file", payload, content_type="application/xml", external_ref=filename,
                     meta={"kind": parsed.form, "filename": filename, "period": parsed.period,
                           "declaration": parsed.declaration})
+    ensure_company_nip(conn, company.id, parsed.subject_nip, source=f"{parsed.form} Podmiot1 ({filename})",
+                       raw_id=raw.id)
     report.raw(raw.created)
     report.skipped.extend(parsed.skipped)
     for locator, facts in parsed.rows:

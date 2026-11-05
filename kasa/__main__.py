@@ -13,6 +13,7 @@ from kasa.core.checks import run_checks
 from kasa.core.companies import init_companies
 from kasa.core.db import DATABASE_URL_ENV, database_url, transaction
 from kasa.core.extension import ExtensionError, discover_extensions, extension_search_paths
+from kasa.core.sensitive import sync_sensitive_terms
 
 
 def cmd_migrate(args: argparse.Namespace) -> int:
@@ -29,6 +30,10 @@ def cmd_init_db(args: argparse.Namespace) -> int:
     extensions = discover_extensions()
     with transaction(url=args.database_url) as conn:
         results = init_companies(conn, extensions.values())
+        added = sync_sensitive_terms(
+            conn, [(company.id, extensions[company.extension_slug].sensitive_words) for company, _ in results])
+    if added:
+        print(f"Słowa wrażliwe: dopisano {added} (rdzeń + rozszerzenia, tabela sensitive_term)")
     for company, created in results:
         state = "utworzona" if created else "już istnieje"
         print(f"Firma {company.slug} ({company.name}, rozszerzenie {company.extension_slug}): {state}")

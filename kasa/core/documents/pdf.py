@@ -2,10 +2,12 @@
 
 The most expensive and least certain channel (briefing, step 1), so:
 
-* the PDF is stored in L0 first; its text (pypdf) goes through the sensitive-word
-  check (a hit bypasses the model) and the pseudonymization gate - when the gate
-  does not work, a model that leaves the machine is **not called**
-  (``PseudonymizationUnavailable``);
+* the PDF is stored in L0 first; its text (pypdf) goes to the model only through
+  ``kasa.core.semantics.gate.guarded_complete`` (sensitive words bypass the model,
+  pseudonymization, leak check, call log) - when the gate does not work, **no model
+  is called**, the local mock included;
+* codes in the answer are reversed only when they were in the text sent (a model
+  could answer with a code it never saw); a regex reading of the mock is ``code``;
 * the model reads a file once per prompt version: the reading is kept in
   ``l1_pdf_extraction`` and reused on the next import (no second call, no cost);
 * code checks that the lines add up to the totals (``lines_sum_ok``); a mismatch
@@ -39,16 +41,11 @@ from kasa.core.documents.ingest import (
     get_company_nip,
     upsert_document,
 )
-from kasa.core.documents.privacy import (
-    PseudonymizationUnavailable,
-    gate_for_model,
-    load_pseudonym_module,
-    sensitive_hits,
-)
-from kasa.core.extension import get_extension
+from kasa.core.documents.privacy import load_pseudonym_module
 from kasa.core.normalize import normalize_iban, normalize_nip, parse_amount, to_minor
 from kasa.core.providers.llm import LlmProvider, get_llm_provider
 from kasa.core.raw_store import store_raw
+from kasa.core.semantics.gate import Blocked, guarded_complete
 
 log = logging.getLogger(__name__)
 
@@ -308,18 +305,19 @@ def load_email_meta(path: Path | None) -> dict[str, dict[str, Any]]:
     return found
 
 
-def _depseudonymize(conn: psycopg.Connection, company_id: Any, value: Any) -> Any:
-    """Codes in the model's answer back to values (the parser is an internal role)."""
+def _depseudonymize(conn: psycopg.Connection, company_id: Any, value: Any, codes: set[str]) -> Any:
+    """Codes in the model's answer back to values (the parser is an internal role) - only ``codes``,
+    the ones present in the text sent to the model; any other code stays as it is."""
     module = load_pseudonym_module()
     reverse = getattr(module, "depseudonymize", None) if module is not None else None
-    if reverse is None:
+    if reverse is None or not codes:
         return value
     if isinstance(value, str):
-        return reverse(conn, company_id, value, role="operator")
+        return reverse(conn, company_id, value, role="operator", only=codes)
     if isinstance(value, list):
-        return [_depseudonymize(conn, company_id, v) for v in value]
+        return [_depseudonymize(conn, company_id, v, codes) for v in value]
     if isinstance(value, dict):
-        return {k: _depseudonymize(conn, company_id, v) for k, v in value.items()}
+        return {k: _depseudonymize(conn, company_id, v, codes) for k, v in value.items()}
     return value
 
 
@@ -336,7 +334,7 @@ def import_pdf(conn: psycopg.Connection, company: Any, payload: bytes, *, filena
     report.raw(raw.created)
     previous = conn.execute(
         """
-        SELECT id, extracted, model, prompt_version, lines_sum_ok, pseudonymized, confidence
+        SELECT id, extracted, model, prompt_version, lines_sum_ok, pseudonymized, confidence, method::text
           FROM l1_pdf_extraction
          WHERE raw_id = %s AND superseded_by IS NULL AND evidence ->> 'provider' = %s
          ORDER BY created_at DESC LIMIT 1
@@ -346,28 +344,24 @@ def import_pdf(conn: psycopg.Connection, company: Any, payload: bytes, *, filena
 
     pseudonymized = False
     input_sha = None
+    method = "model"
     if previous is not None:
-        _, data, model, prompt_version, _, pseudonymized, _ = previous
+        _, data, model, prompt_version, _, pseudonymized, _, method = previous
     else:
-        text = pdf_text(payload)
-        hits = sensitive_hits(text, get_extension(company.extension_slug).sensitive_words)
-        if hits:
-            report.skipped.append(f"{filename}: słowo wrażliwe ({', '.join(hits)}) - bez modelu, do kolejki")
-            report.outcomes.append(PdfOutcome(filename, "sensitive", detail=", ".join(hits)))
+        gated = guarded_complete(conn, company, "pdf_invoice", pdf_text(payload), PdfExtraction, provider=llm,
+                                 source_name=filename, source_sha256=digest)
+        if isinstance(gated, Blocked):
+            if gated.reason == "sensitive":
+                report.skipped.append(f"{filename}: słowo wrażliwe - bez modelu, do kolejki")
+                report.outcomes.append(PdfOutcome(filename, "sensitive", detail=", ".join(gated.categories)))
+            else:
+                report.errors.append(f"{filename}: {gated.detail}")
+                report.outcomes.append(PdfOutcome(filename, "blocked", detail=gated.detail))
             return report
-        try:
-            gate = gate_for_model(conn, company.id, text, llm)
-        except PseudonymizationUnavailable as exc:
-            report.errors.append(f"{filename}: {exc}")
-            report.outcomes.append(PdfOutcome(filename, "blocked", detail=str(exc)))
-            return report
-        pseudonymized = gate.pseudonymized
-        input_sha = hashlib.sha256(gate.text.encode()).hexdigest()
-        data, model, prompt_version = llm.extract_invoice(
-            gate.text, EXTRACTION_SCHEMA, source_name=filename, source_sha256=digest
-        )
-        if pseudonymized:
-            data = _depseudonymize(conn, company.id, data)
+        pseudonymized = True
+        input_sha = hashlib.sha256(gated.input_pseudonymized.encode()).hexdigest()
+        data, model, prompt_version, method = gated.raw, gated.model, gated.prompt_version, gated.method
+        data = _depseudonymize(conn, company.id, data, gated.codes)
 
     problem = ""
     try:
@@ -396,7 +390,7 @@ def import_pdf(conn: psycopg.Connection, company: Any, payload: bytes, *, filena
         if email:
             evidence["email"] = {k: email.get(k) for k in ("id", "message_id", "date", "subject")}
         result = upsert_document(conn, company.id, facts, Observation(
-            raw_id=raw.id, source="pdf", method="model", prompt_version=prompt_version,
+            raw_id=raw.id, source="pdf", method=method, prompt_version=prompt_version,
             confidence=Decimal(str(confidence)).quantize(Decimal("0.0001")) if confidence is not None else None,
             evidence=evidence, created_by=f"{created_by}:{model}",
         ), caps=capabilities(conn))
@@ -417,11 +411,11 @@ def import_pdf(conn: psycopg.Connection, company: Any, payload: bytes, *, filena
             INSERT INTO l1_pdf_extraction (company_id, raw_id, document_id, model, input_sha256, pseudonymized,
                                            extracted, lines_sum_ok, needs_review, source, method, confidence,
                                            evidence, prompt_version, created_by)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'pdf', 'model', %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'pdf', %s, %s, %s, %s, %s)
             ON CONFLICT (raw_id, model, prompt_version) DO NOTHING
             """,
             (company.id, raw.id, document_id, model, input_sha, pseudonymized, Jsonb(data), lines_ok,
-             outcome.needs_review,
+             outcome.needs_review, method,
              Decimal(str(confidence)).quantize(Decimal("0.0001")) if confidence is not None else None,
              Jsonb({"provider": llm.name, "filename": filename, "lines_check": line_details,
                     "outcome": outcome.status}),

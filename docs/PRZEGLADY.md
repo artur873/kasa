@@ -38,3 +38,19 @@ Ważne (faza w nawiasie):
 8. `company.nip` ustawiany bez pochodzenia (3).
 
 Drobne: 9. identyfikator zbiorczy płatności B2B od 2027 (4); 10. depseudonimizacja tylko kodów z wejścia (3); 11. test: semantyka nie czyta wierszy sensitive (3).
+
+Status (faza 3, 5.11.2026): pkt 12 - `l1_semantics` (migracja 0008); pkt 15 - `kasa.core.sensitive` + tabela
+`sensitive_term` (stemmer z odmianą polską).
+
+## Faza 2 (5.11.2026) - punkty wykonane w fazie 3
+
+1. BLOKUJĄCE: nadmiar „osób” w pseudonimizacji (nazwy produktów, ulic, firm) → dwa słowa z wielkiej litery są
+   osobą tylko z dowodem; `pseudonym_key.basis`; test precyzji na wszystkich tytułach, nazwach i tekstach PDF
+   (`tests/semantics/test_pseudonym_precision.py`). Błędne klucze w bazie `kasa` zostają (nic nie kasujemy),
+   nowy kod ich nie używa i nie tworzy.
+2. `l1_pdf_extraction.method` dopuszcza `code`; odczyt regexem modelu testowego jest `code`.
+3. Odczyt PDF odwraca tylko kody obecne w tekście wysłanym do modelu.
+4. `company.nip_evidence` - źródło, `raw_id` i czas pierwszego ustalenia NIP-u firmy.
+5. Semantyka nigdy nie czyta wierszy z `sensitive = true` (test dla modelu lokalnego i „zewnętrznego”).
+6. `extracted.phones` w `l1_bank_transaction` bez jawnego numeru (tylko pseudonim); `PARSER_SCHEMA_VERSION = 2`.
+

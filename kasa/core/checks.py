@@ -28,6 +28,7 @@ L1_TABLES = (
     "l1_fx_rate",
     "l1_title_semantics",
     "l1_internal_record",
+    "l1_semantics",
 )
 L2_TABLES = ("l2_suggestion",)
 L3_TABLES = (
@@ -39,7 +40,8 @@ L3_TABLES = (
     "l3_category_decision",
     "l3_transaction_status",
 )
-SUBJECT_TABLES = ("l2_suggestion", "l3_decision_log", "l3_allocation", "l3_category_decision")
+SUBJECT_TABLES = ("l2_suggestion", "l3_decision_log", "l3_allocation", "l3_category_decision", "l1_semantics",
+                  "control_set_item")
 
 PROVENANCE_COLUMNS: dict[str, str] = {
     "company_id": "uuid",
@@ -67,6 +69,13 @@ def expected_triggers() -> set[tuple[str, str]]:
         ("l3_decision_log", "l3_decision_log_append_only"),
         ("l3_allocation", "l3_allocation_target_guard"),
         ("company", "company_unassigned"),
+        # phase 3 (0008): model calls, payload retention, control sets, sensitive words
+        ("llm_call_log", "llm_call_log_append_only"),
+        ("llm_call_payload", "llm_call_payload_guard"),
+        ("control_set", "control_set_guard"),
+        ("control_set_item", "control_set_item_guard"),
+        ("control_set_label_history", "control_set_label_history_append_only"),
+        ("sensitive_term", "sensitive_term_guard"),
     }
     return expected
 

@@ -68,12 +68,13 @@ def test_a_new_parser_version_supersedes_every_fact(conn, ingested, provider, mo
     company, _ = ingested
     old = {r["entry_reference"]: r for r in rows_of(company.id)}
     groups_before = {r["entry_reference"]: r["mpp_group_id"] for r in old.values() if r["mpp_group_id"]}
-    monkeypatch.setattr(ingest_module, "PARSER_SCHEMA_VERSION", 2)
+    old_version = ingest_module.PARSER_SCHEMA_VERSION
+    monkeypatch.setattr(ingest_module, "PARSER_SCHEMA_VERSION", old_version + 1)
     results = ingest_company(conn, company, provider, *OCTOBER)
     assert sum(r.superseded for r in results) == 87 and sum(r.inserted for r in results) == 0
     assert _counts(conn, company.id) == (83, 4, 174)
     new = {r["entry_reference"]: r for r in rows_of(company.id)}
-    assert {r["schema_version"] for r in new.values()} == {2}
+    assert {r["schema_version"] for r in new.values()} == {old_version + 1}
     pairs = conn.execute(
         """
         SELECT o.entry_reference, o.schema_version, n.id, n.schema_version FROM l1_bank_transaction o
@@ -81,7 +82,8 @@ def test_a_new_parser_version_supersedes_every_fact(conn, ingested, provider, mo
          WHERE o.company_id = %s
         """,
         (company.id,)).fetchall()
-    assert len(pairs) == 87 and all(p[1] == 1 and p[3] == 2 and new[p[0]]["id"] == p[2] for p in pairs)
+    assert len(pairs) == 87 and all(p[1] == old_version and p[3] == old_version + 1 and new[p[0]]["id"] == p[2]
+                                 for p in pairs)
     assert {r["entry_reference"]: r["mpp_group_id"] for r in new.values() if r["mpp_group_id"]} == groups_before
     conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
     # the version that is current now is not rewritten again

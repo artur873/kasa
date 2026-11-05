@@ -1,8 +1,9 @@
-# Schemat bazy (faza 1)
+# Schemat bazy (fazy 1-3)
 
-Migracje: `migrations/0001_core.sql` … `0005_l3_decisions.sql`, stosowane przez `python -m kasa migrate`
+Migracje: `migrations/0001_core.sql` … `0008_phase3_semantics.sql`, stosowane przez `python -m kasa migrate`
 (każdy plik w osobnej transakcji, zapis w `schema_migrations` z sumą SHA-256; zmiana zastosowanego pliku = błąd).
-Rozszerzenia PostgreSQL: żadne (`gen_random_uuid()` jest wbudowane od wersji 13).
+Rozszerzenia PostgreSQL: `pgcrypto` (od 0006, szyfrowanie kluczy pseudonimów; `gen_random_uuid()` jest wbudowane).
+Sekcje do „Zasad triggerów” opisują fazę 1; tabele faz 2 i 3 są opisane na końcu.
 
 ## Wspólne
 
@@ -82,3 +83,48 @@ Ograniczenia CHECK uzupełniają triggery: L3 przyjmuje tylko `human` i `rule`, 
 kosztowy (`code`/`model`, status `candidate`) i kandydat na regułę (`code`, etap `candidate`); obiektu kosztowego nie
 zatwierdza, nie łączy ani nie odrzuca automat. Kontrola `python -m kasa check` sprawdza, że wszystkie triggery istnieją
 i są włączone oraz że każda tabela L1-L3 ma komplet kolumn pochodzenia.
+
+## Faza 2 - bank i kontrahenci (`0006_phase2_bank.sql`)
+
+| Obiekt | Co to jest |
+| --- | --- |
+| `l0_raw.purged_at`, `l0_purge_log` | Retencja L0: jedyna dozwolona zmiana surowego rekordu to opróżnienie treści przez `kasa_purge_raw(id, powód)` (skrót SHA-256 i metadane zostają), każde opróżnienie ma wpis w dzienniku (tylko dopisywanie). |
+| `pseudonym_key` | Klucz pseudonimów: firma, rodzaj (`person`/`iban`/`phone`/`email`/`pesel`/`address`), kod (`P-7f3a`), HMAC wartości i wartość zaszyfrowana pgcrypto; wolno tylko zniszczyć wartość (`shredded_at`, KS008), nic nie kasujemy. |
+| `l1_counterparty` | Kontrahent jako fakt (NIP, numer zagraniczny, nazwa, IBAN-y, rodzaj `company`/`person`/`institution`/`bank`/`own`); jedyna droga zapisu to `kasa_upsert_counterparty()` (NIP → numer zagraniczny → IBAN → nazwa), firma sama dla siebie to `kasa_own_counterparty()`. |
+| `l1_bank_account` (+ kolumny) | Rachunek: dostawca, identyfikator u dostawcy, BIC, właściciel. |
+| `l1_bank_transaction` (+ kolumny) | Szeroki rekord przelewu: data operacji, kod i opis operacji banku, MCC, referencja, BIC nadawcy, saldo liczone przez nas, `counterparty_id`, tytuł/nadawca/IBAN po pseudonimizacji, flaga `sensitive`, split payment (`mpp_group_id`, `mpp_role`), surowy plik i miejsce w nim. |
+| `l1_bank_balance` | Saldo zgłoszone przez bank (`OPBD`/`CLBD`/`PRCD`/`ITAV`/`CLAV`) na dzień; nowa wartość zastępuje starą przez `superseded_by`. |
+| `l1_document.counterparty_id`, format numeru KSeF | Druga strona dokumentu jako kontrahent; CHECK formatu numeru KSeF. |
+| `truth_check_result` | Wynik każdej kontroli prawdy (ciągłość sald, MPP, kompletność KSeF) per firma, zakres i okres; tylko dopisywanie. |
+
+## Faza 2 - dokumenty (`0007_phase2_documents.sql`)
+
+| Obiekt | Co to jest |
+| --- | --- |
+| `company.nip` | NIP firmy - rozstrzyga kierunek faktury (Podmiot1 = my → sprzedaż). |
+| `l1_document.extra`, `l1_document_line.extra`, `line_kind` | Pola źródła bez własnej kolumny („zapisujemy wszystko”); rodzaj pozycji `invoice`/`order`/`correction`. |
+| `l1_document_observation.parser_version` | Wersja parsera, która czytała plik (idempotentny import, nowa wersja = nowa wersja dokumentu). |
+| `document_lineage` (widok) | Każda wersja dokumentu → bieżąca głowa łańcucha (`head_id`). |
+| `import_mapping_profile` | Pamięć kreatora importu: mapowanie kolumn potwierdzone raz dla plików o danych nagłówkach; zmiana = nowy profil z `superseded_by`. |
+| `l1_pdf_extraction` | Odczyt PDF raz na (plik, model, wersję promptu): skrót tekstu wysłanego do modelu, wynik pseudonimizacji, kontrola sumy pozycji, `needs_review`. |
+| `document_kind.bill`, `suggestion_kind.duplicate` | Rachunek osoby; sugestia „to może być duplikat dokumentu X”. |
+
+## Faza 3 - semantyka i zbiory kontrolne (`0008_phase3_semantics.sql`)
+
+| Obiekt | Co to jest |
+| --- | --- |
+| `l1_semantics` | Odczyt tekstu podmiotu (`transaction`, `line`, `internal_record`, `document`) przez model albo kod: cel (`title_intent`, `line_entities`), intencja, encje (teksty jako `{"untrusted_text": …}`), podsumowanie, model, wersja promptu, **dokładnie to, co widział model** (`input_pseudonymized`) i id wywołania; jeden bieżący wiersz na (podmiot, cel, wersję promptu, model), nowsza wersja zastępuje starszą przez `superseded_by` (przegląd fazy 1, pkt 12). |
+| `title_semantics_current` (widok) | Najnowszy bieżący odczyt tytułu każdego przelewu (z `l1_semantics`, a gdzie go nie ma - z `l1_title_semantics` fazy 1, która zostaje). |
+| `llm_call_log` | Każde wywołanie modelu, także zablokowane: dostawca, model, wersja promptu, cel, podmiot, SHA-256 i długość promptu (nigdy tekst), skrót odpowiedzi, czas, koszt, status `ok`/`blocked`/`error` i powód; tylko dopisywanie. |
+| `llm_call_payload` | Pełny prompt po pseudonimizacji i odpowiedź, 90 dni (`expires_at`); jedyna zmiana to wygaszenie przez `kasa_expire_llm_payloads()` (KS010). |
+| `control_set` | Zbiór kontrolny firmy (`transaction`/`cost`), docelowy rozmiar, ziarno losowania, zamrożenie i zakończenie (tylko raz każde, KS009). |
+| `control_set_item` | Pozycja zbioru: podmiot, kolejność, etykieta (prawda referencyjna, nie decyzja), kto i kiedy, czas na odpowiedź (`duration_ms` od `shown_at`), wartownik ze znaną odpowiedzią i jego wynik; podmiot, kolejność i wartownik niezmienne, do zamrożonego zbioru nic nie dochodzi (KS009). |
+| `control_set_label_history` | Każda zmiana nadanej już etykiety (stara i nowa, kto, kiedy) - zapisuje ją trigger; tylko dopisywanie. |
+| `sensitive_term` | Słowo wrażliwe jako rdzeń z odmianą (`stem`), kategoria, źródło `core`/`extension`/`human`, firma (`NULL` = wszystkie); zasilane przez `init-db`, wycofanie przez `retired_at` (KS011; przegląd fazy 1, pkt 15). |
+| `l1_pdf_extraction.method` | Dopuszcza `code` - odczyt regexem modelu testowego to kod, nie model (przegląd fazy 2). |
+| `company.nip_evidence` | Skąd i kiedy ustalono NIP firmy przy pierwszym ustawieniu (źródło, `raw_id`). |
+| `pseudonym_key.basis` | Dlaczego wartość uznano za osobę (`registered`, `first_name`, `context`, `known_person`); klucze sprzed 0008 (`NULL`) są używane jako osoby tylko z dowodem (imię, arkusz, kontrahent-osoba). |
+
+Nowe kody strażników: `KS008` klucz pseudonimu tylko do zniszczenia (0006), `KS009` zbiór kontrolny (zamrożenie,
+niezmienna tożsamość pozycji), `KS010` wygaszanie payloadów modelu tylko funkcją, `KS011` słowo wrażliwe tylko
+do wycofania.

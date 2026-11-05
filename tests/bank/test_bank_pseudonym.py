@@ -127,7 +127,17 @@ def test_detector_knows_company_words_and_safe_words():
     persons = [d.value for d in detect("zajecie wynagrodzenia dluznika Tomasz Grabowiecki za 09/2026", context)]
     assert persons == ["Tomasz Grabowiecki"]
     assert [d.value for d in detect("zwrot dla Jan Kowalski", context)] == ["Jan Kowalski"]
-    assert [d.method for d in detect("przelew Zenobiusz Brzęczyszczykiewicz", context)] == ["capitalized_pair"]
+    assert [d.method for d in detect("przelew Zenobiusz Brzęczyszczykiewicz", context)] == ["first_name"]
+    # two capitalized words without evidence are not a person (product, street, company names)...
+    for text in ("Google Workspace Business Standard", "70 Sir John Rogerson's Quay", "Scena Pro technika",
+                 "przelew Grzmot Wichura"):
+        assert [d for d in detect(text, context) if d.kind == "person"] == [], text
+    # ...a first name in another case, an honorific, BLIK or a phone/PESEL after the name are evidence
+    assert [d.value for d in detect("dla Pana Tomasza Grabowieckiego", context)] == ["Tomasza Grabowieckiego"]
+    assert [(d.value, d.method) for d in detect("zwrot - Pani Wichura", context)] == [("Wichura", "context")]
+    assert [d.method for d in detect("BLIK Grzmot Wichura", context)] == ["context"]
+    assert [d.method for d in detect("Grzmot Wichura, tel. 500 111 222", context) if d.kind == "person"] == [
+        "context"]
     assert [d.value for d in detect("Kadr Studio Paweł Wierzbicki", context)] == ["Paweł Wierzbicki"]
 
 

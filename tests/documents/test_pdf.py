@@ -4,6 +4,7 @@ and the pseudonymization gate in front of every model that leaves the machine.""
 from __future__ import annotations
 
 import hashlib
+import re
 import types
 from datetime import date
 from decimal import Decimal
@@ -16,6 +17,7 @@ from kasa.core.documents.pdf import EXTRACTION_SCHEMA, import_pdf, import_pdfs, 
 from kasa.core.normalize import to_minor
 from kasa.core.providers.ksef import MockKsef, ProviderNotConfigured
 from kasa.core.providers.llm import MockLlm, VertexLlm, get_llm_provider
+from kasa.core.pseudonym import pseudonym_for
 
 from .conftest import FIXTURES, expected_pdfs, observations_of
 
@@ -195,12 +197,37 @@ def test_failing_gate_blocks_the_call(conn, odm, monkeypatch):
     assert llm.calls == [] and report.outcomes[0].status == "blocked"
 
 
-def test_mock_may_read_without_the_gate_because_it_stays_local(conn, odm, monkeypatch):
+def test_without_the_gate_even_the_local_mock_is_not_called(conn, odm, monkeypatch):
+    # phase 3: every provider goes through kasa.core.semantics.gate - no gate, no call (mock included)
     monkeypatch.setattr(privacy, "load_pseudonym_module", lambda: None)
-    report = import_pdf(conn, odm, _pdf("EM-05"), filename="EM-05.pdf", llm=MockLlm())
-    assert report.outcomes[0].status == "document"
-    assert conn.execute("SELECT pseudonymized FROM l1_pdf_extraction WHERE company_id = %s",
-                        (odm.id,)).fetchone() == (False,)
+    llm = CountingLlm()
+    report = import_pdf(conn, odm, _pdf("EM-05"), filename="EM-05.pdf", llm=llm)
+    assert llm.calls == 0 and report.outcomes[0].status == "blocked"
+    assert conn.execute("SELECT count(*) FROM l1_pdf_extraction WHERE company_id = %s", (odm.id,)).fetchone() == (0,)
+    assert conn.execute(
+        "SELECT status::text, blocked_reason, input_hash FROM llm_call_log WHERE company_id = %s", (odm.id,),
+    ).fetchall() == [("blocked", "gate_unavailable", None)]
+
+
+def test_regex_reading_is_code_and_codes_are_reversed_only_when_sent(conn, odm):
+    class Hallucinating(_RegexOnly):
+        def extract_invoice(self, content, schema, **kwargs):
+            data, model, prompt = super().extract_invoice(content, schema, **kwargs)
+            sent = set(re.findall(r"\b[PITENA]-[0-9a-f]{4,16}\b", content))
+            data["seller"]["name"] = f"{sorted(sent)[0]} / {stranger}"       # a code it never saw
+            return data, model, prompt
+
+    stranger = pseudonym_for(conn, odm.id, "person", "Zenobia Obca")
+    report = import_pdf(conn, odm, _pdf("EM-05"), filename="skan.pdf", llm=Hallucinating())
+    [outcome] = report.outcomes
+    seller = conn.execute("SELECT seller_name FROM l1_document WHERE id = %s", (outcome.document_id,)).fetchone()
+    assert stranger in seller[0] and "Obca" not in seller[0]          # the unseen code stays a code
+    assert not re.search(r"\b[PITENA]-[0-9a-f]{4,16}\b", seller[0].split(" / ")[0])   # the seen code: reversed
+    assert conn.execute("SELECT method::text, model FROM l1_pdf_extraction WHERE company_id = %s",
+                        (odm.id,)).fetchone() == ("code", "mock-regex")
+    assert observations_of(conn, outcome.document_id)[0][0] == "pdf"
+    assert conn.execute("SELECT method::text FROM l1_document_observation WHERE document_id = %s",
+                        (outcome.document_id,)).fetchone() == ("code",)
 
 
 def test_model_sees_only_pseudonymized_text(conn, odm):

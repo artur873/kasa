@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import re
 import uuid
 from collections import Counter
 from collections.abc import Iterable, Sequence
@@ -61,7 +60,8 @@ log = logging.getLogger(__name__)
 
 # Bump when parsing or extraction changes: the next ingestion writes new fact
 # rows (schema_version = this) and supersedes the old ones.
-PARSER_SCHEMA_VERSION = 1
+# 2: extracted.phones keeps only the pseudonym (no plain number in the facts).
+PARSER_SCHEMA_VERSION = 2
 CREATED_BY = "kasa.bank"
 MPP_GROUP_NAMESPACE = uuid.UUID("6b617361-6d70-7000-8000-000000000001")
 MPP_DATE_TOLERANCE = timedelta(days=1)
@@ -507,11 +507,10 @@ def _insert_transaction(conn: psycopg.Connection, company: Company, account: Acc
             (counterparty_ps, item.counterparty.id),
         )
     sensitive = sorted(set(sensitive_hits(entry.title, words)) | set(sensitive_hits(entry.counterparty_name, words)))
-    phone_ps = {h.value: h.pseudonym for h in hits if h.kind == "phone"}
     if extracted.get("phones"):
+        # only the pseudonym is kept in the facts; the number itself stays in title_raw (phase 2 review)
         extracted["phones"] = [
-            {"number": number, "pseudonym": next((p for v, p in phone_ps.items() if re.sub(r"\D", "", v)
-                                                  .endswith(number)), None)}
+            {"pseudonym": pseudonym_for(conn, company.id, "phone", number, context=context, basis="regex")}
             for number in extracted["phones"]
         ]
     persons = sorted({h.pseudonym for h in hits if h.kind == "person"})

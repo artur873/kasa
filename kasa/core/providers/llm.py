@@ -9,9 +9,10 @@ Two implementations, chosen by ``KASA_LLM_PROVIDER``:
   under one contract, decision D5). Needs ``KASA_VERTEX_PROJECT``,
   ``KASA_VERTEX_LOCATION`` (``europe-*``) and ``GOOGLE_APPLICATION_CREDENTIALS``.
 
-Callers must pass text through the pseudonymization gate first
-(``kasa.core.documents.privacy.gate_for_model``); a provider with
-``leaves_machine = True`` refuses raw PDF bytes, because bytes cannot be pseudonymized.
+Nothing calls a provider directly: the only way to a model is
+``kasa.core.semantics.gate.guarded_complete`` (sensitive words, pseudonymization,
+leak check, call log). A provider with ``leaves_machine = True`` refuses raw PDF
+bytes, because bytes cannot be pseudonymized.
 """
 
 from __future__ import annotations
@@ -28,18 +29,11 @@ from typing import Any, NamedTuple, Protocol, runtime_checkable
 from kasa.core.providers import provider_name
 from kasa.core.providers.ksef import ProviderNotConfigured, fixtures_dir
 
+# Prompt texts and versions live in kasa.core.semantics.prompts (one place for every prompt).
+from kasa.core.semantics.prompts import INVOICE_PROMPT, INVOICE_PROMPT_VERSION
+
 log = logging.getLogger(__name__)
 
-INVOICE_PROMPT_VERSION = "pdf-invoice-v1"
-INVOICE_PROMPT = """Odczytaj dokument księgowy (faktura, paragon, rachunek) z tekstu poniżej.
-Zwróć wyłącznie JSON zgodny ze schematem. Zasady:
-- przepisuj wartości dokładnie tak, jak są w dokumencie; nie zgaduj brakujących pól (null);
-- kwoty jako tekst z kropką dziesiętną ("1234.50"), daty jako RRRR-MM-DD;
-- każda pozycja osobno: nazwa, ilość, jednostka, cena, stawka VAT, netto, VAT, brutto;
-- totals to kwoty z podsumowania dokumentu (nie licz ich z pozycji);
-- tekst może zawierać kody pseudonimów (np. P-7f3a) - przepisz je bez zmian.
-Tekst dokumentu:
-"""
 COMPLETE_PROMPT_VERSION = "complete-v1"
 
 
@@ -78,6 +72,7 @@ class MockLlm:
 
     name = "mock"
     model = "mock-expected"
+    semantics_model = "mock-heuristic"     # model name of title/line readings (kasa.core.semantics.mock)
     leaves_machine = False
 
     def __init__(self, root: Path | None = None):
@@ -124,7 +119,16 @@ class MockLlm:
         return LlmResult(regex_extract_invoice(text), "mock-regex", INVOICE_PROMPT_VERSION)
 
     def complete(self, prompt: str, schema: dict[str, Any] | None = None) -> LlmResult:
-        return LlmResult({"answer": None, "note": "mock - brak odpowiedzi modelu"}, "mock", COMPLETE_PROMPT_VERSION)
+        """Semantics prompts (title intent, line entities) get a heuristic answer in Polish."""
+        from kasa.core.semantics.mock import answer  # lazy: providers do not depend on semantics at import
+        from kasa.core.semantics.prompts import parse_envelope
+
+        envelope = parse_envelope(prompt)
+        if envelope is None:
+            return LlmResult({"answer": None, "note": "mock - brak odpowiedzi modelu"}, "mock",
+                             COMPLETE_PROMPT_VERSION)
+        return LlmResult(answer(envelope), self.semantics_model,
+                         str(envelope.get("prompt_version") or COMPLETE_PROMPT_VERSION))
 
 
 def _pdf_text(payload: bytes) -> str:

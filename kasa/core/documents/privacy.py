@@ -1,12 +1,12 @@
-"""Pseudonymization gate in front of every model call made by the documents channel.
+"""Access to the pseudonymization module for the documents channel and the gate.
 
-The gate itself lives in ``kasa.core.pseudonym`` (bank/pseudonymization work,
-migration 0006). This module only *uses* it, loaded dynamically:
+The gate itself lives in ``kasa.core.pseudonym`` (migration 0006) and the only way
+to a model is ``kasa.core.semantics.gate.guarded_complete``, which loads the module
+through :func:`load_pseudonym_module`:
 
 * the module exists -> text goes through ``pseudonymize_text(conn, company_id, text)``;
-* the module is missing or raises -> **no call** to a model that leaves the machine
-  (briefing, step 9: "gdy bramka nie działa, wywołania nie ma"). The mock model
-  never leaves the machine, so it may still read the text (with a warning).
+* the module is missing or raises -> **no call** to any model, the local mock
+  included (briefing, step 9: "gdy bramka nie działa, wywołania nie ma").
 
 ``person_pseudonym`` gives the stable code of a person named in an internal file
 (PM sheet): the pseudonym module's code when it offers one, otherwise an HMAC of
@@ -22,9 +22,8 @@ import logging
 import os
 import re
 import unicodedata
-from dataclasses import dataclass
 from types import ModuleType
-from typing import Any, Protocol
+from typing import Any
 from uuid import UUID
 
 import psycopg
@@ -39,20 +38,8 @@ class PseudonymizationUnavailable(RuntimeError):
     """The gate does not work, so the model is not called."""
 
 
-class ModelLike(Protocol):
-    name: str
-    leaves_machine: bool
-
-
-@dataclass(frozen=True)
-class GateResult:
-    text: str
-    pseudonymized: bool
-    note: str = ""
-
-
 def load_pseudonym_module() -> ModuleType | None:
-    """The pseudonymization module, or None when it does not exist (yet)."""
+    """The pseudonymization module, or None when it does not exist."""
     try:
         return importlib.import_module(PSEUDONYM_MODULE)
     except ModuleNotFoundError as exc:
@@ -61,7 +48,8 @@ def load_pseudonym_module() -> ModuleType | None:
         raise
 
 
-def _as_text(result: Any) -> str:
+def as_text(result: Any) -> str:
+    """The text part of what ``pseudonymize_text`` returned ((text, hits), dict or object)."""
     if isinstance(result, str):
         return result
     if isinstance(result, (tuple, list)) and result and isinstance(result[0], str):
@@ -72,32 +60,6 @@ def _as_text(result: Any) -> str:
     if isinstance(text, str):
         return text
     raise TypeError(f"pseudonymize_text zwróciło {type(result).__name__}, oczekiwano tekstu")
-
-
-def gate_for_model(conn: psycopg.Connection, company_id: UUID, text: str, model: ModelLike) -> GateResult:
-    """Text the model may see. Raises PseudonymizationUnavailable when the call must not happen."""
-    module = load_pseudonym_module()
-    function = getattr(module, "pseudonymize_text", None) if module is not None else None
-    if function is None:
-        if model.leaves_machine:
-            raise PseudonymizationUnavailable(
-                f"bramka pseudonimizacji niedostępna ({PSEUDONYM_MODULE}.pseudonymize_text) - "
-                f"wywołania modelu {model.name} nie ma"
-            )
-        log.warning("Brak bramki pseudonimizacji - model %s jest lokalny (mock), tekst nie opuszcza maszyny.",
-                    model.name)
-        return GateResult(text, False, "brak bramki; model lokalny (mock) - tekst nie opuścił maszyny")
-    try:
-        with conn.transaction():
-            pseudonymized = _as_text(function(conn, company_id, text))
-    except Exception as exc:  # any failure of the gate means: no call
-        if model.leaves_machine:
-            raise PseudonymizationUnavailable(
-                f"bramka pseudonimizacji zgłosiła błąd ({exc}) - wywołania modelu {model.name} nie ma"
-            ) from exc
-        log.warning("Bramka pseudonimizacji zgłosiła błąd (%s) - model lokalny (mock) czyta tekst.", exc)
-        return GateResult(text, False, f"bramka zgłosiła błąd: {exc}; model lokalny (mock)")
-    return GateResult(pseudonymized, True)
 
 
 def normalize_person(name: str) -> str:
@@ -128,17 +90,6 @@ def person_pseudonym(conn: psycopg.Connection, company_id: UUID, name: str | Non
             if isinstance(code, str) and code and code != name:
                 return code, "pseudonym_module"
     return hmac_pseudonym(company_id, name), "hmac"
-
-
-def sensitive_hits(text: str, extension_words: list[str]) -> list[str]:
-    """Sensitive words in the text (word stems when the pseudonym module offers it, else substrings)."""
-    module = load_pseudonym_module()
-    hits = getattr(module, "sensitive_hits", None) if module is not None else None
-    words_for = getattr(module, "sensitive_words_for", None) if module is not None else None
-    if hits is not None and words_for is not None:
-        return list(hits(text, words_for(extension_words)))
-    folded = text.casefold()
-    return [word for word in extension_words if word.casefold() in folded]
 
 
 _warned: set[str] = set()
