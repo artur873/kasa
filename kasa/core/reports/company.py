@@ -14,10 +14,18 @@ VAT rebooking) are a line of their own, they net to zero when both legs are in t
 of a split payment are two transfers matched to one invoice, each counted once.
 
 Four rows in both views: sum of the cost objects, UNASSIGNED, not allocated / not matched, the
-control (all documents of the month; the change of the balances of all accounts). The control
+control (all documents of the month; the change of the balances of all accounts). An own transfer counts
+as "own" only with a decision in force (``l3_transaction_status`` = ``own_transfer``, a person's or the
+built-in rule's); one that only looks like an own transfer (operation type / counterparty "own") without a
+decision is "niesparowane" with the detail ``unmatched_own`` (review of 4A/4B, point 9). The control
 difference is 0.00 by construction - every amount is split to the grosz (largest remainder) into
 exactly one row. Per object: memorial revenue, cost and margin (the whole object, not only the
 month), cash contribution of the month, and the part of the amounts still in open suggestions.
+
+Phase 5: this module is THE implementation behind the metrics ``company_result``, ``margin_accrual``,
+``margin_fully_loaded``, ``cash_contribution``, ``revenue_accrual_net`` and ``allocation_coverage``
+(``kasa/core/metrics/definitions/``) - the report of the company is the composition of those metrics, one
+definition for the command line, the dashboard and the agent.
 """
 
 from __future__ import annotations
@@ -101,6 +109,9 @@ class CompanyReport:
     month: str
     period: tuple[date, date]
     memorial: dict[str, MemorialRow] = field(default_factory=dict)
+    # month amounts without an allocation that wait in open rank-1 suggestions (a part of "unallocated"):
+    # "objects" / "unassigned" by the proposed target
+    memorial_pending: dict[str, MemorialRow] = field(default_factory=dict)
     cash: dict[str, int] = field(default_factory=dict)
     cash_detail: dict[str, int] = field(default_factory=dict)
     objects: list[ObjectLine] = field(default_factory=list)
@@ -134,6 +145,8 @@ class CompanyReport:
             "memorial": {k: {"revenue_minor": v.revenue_minor, "cost_minor": v.cost_minor,
                              "result_minor": v.result_minor} for k, v in self.memorial.items()},
             "memorial_difference_minor": self.memorial_difference_minor,
+            "memorial_pending": {k: {"revenue_minor": v.revenue_minor, "cost_minor": v.cost_minor}
+                                 for k, v in self.memorial_pending.items()},
             "cash": dict(self.cash), "cash_detail": dict(self.cash_detail),
             "cash_control_minor": self.cash_control_minor, "control_source": self.control_source,
             "cash_difference_minor": self.cash_difference_minor,
@@ -149,6 +162,22 @@ class CompanyReport:
 # ---------------------------------------------------------------------------
 # helpers
 # ---------------------------------------------------------------------------
+
+
+def evidence_documents(records, documents, matches) -> dict[UUID, dict[str, Any]]:
+    """Rows of internal files that are evidence of a document ("one cost, many pieces of evidence").
+
+    Decided by matching first (0013: a row ``evidence_only`` in the group of the document, or a row matched to
+    the same transfer as a document); the guess "same person, amount and date as a bill of a person" only for
+    rows without any active match, marked ``presumption`` (an assumption, not a decision).
+    """
+    covered = evidence_of_documents(records, documents, matches, person_heuristic=False)
+    guessed = evidence_of_documents(records, documents, matches, person_heuristic=True)
+    for record_id, link in guessed.items():
+        if record_id in covered or record_id in matches.transactions_of_record:
+            continue
+        covered[record_id] = {**link, "presumption": True}
+    return covered
 
 
 def _active_allocations(conn: psycopg.Connection, company_id: UUID) -> dict[tuple[str, UUID], list[tuple[UUID, int]]]:
@@ -241,7 +270,7 @@ def company_report(conn: psycopg.Connection, company_id: UUID, month: str) -> Co
     documents = load_documents(conn, company_id)
     records = load_internal_records(conn, company_id)
     matches = load_matches(conn, company_id)
-    covered = evidence_of_documents(records, documents, matches)
+    covered = evidence_documents(records, documents, matches)
     allocations = _active_allocations(conn, company_id)
     pending = _pending(conn, company_id)
     unassigned_id = next(p.id for p in profiles.values() if p.system_code == "UNASSIGNED")
@@ -260,6 +289,8 @@ def company_report(conn: psycopg.Connection, company_id: UUID, month: str) -> Co
 
     for row in ("objects", "unassigned", "unallocated", "control"):
         report.memorial[row] = MemorialRow()
+    for row in ("objects", "unassigned"):
+        report.memorial_pending[row] = MemorialRow()
 
     def memorial_item(subject: tuple[str, UUID], amount: int, sales: bool, window: tuple[date, date]) -> None:
         month_part = split_by_month(amount, window).get(month, 0)
@@ -290,6 +321,11 @@ def company_report(conn: psycopg.Connection, company_id: UUID, month: str) -> Co
                         obj.revenue_pending_minor += part
                     else:
                         obj.cost_pending_minor += part
+            for key, part in _split(month_part, pending[subject], profiles):
+                if key == UNALLOCATED:
+                    continue
+                bucket = "unassigned" if key == unassigned_id else "objects"
+                report.memorial_pending[bucket].add(part * revenue_sign, part * (1 - revenue_sign))
 
     for doc in documents.values():
         sales = doc.direction == "sales"
@@ -302,8 +338,13 @@ def company_report(conn: psycopg.Connection, company_id: UUID, month: str) -> Co
     for record in records.values():
         if record.id in covered:
             link = covered[record.id]
-            report.evidence_links.append({"internal_record_id": str(record.id),
-                                          "document_id": str(link["document_id"]), "reason": link["reason"]})
+            entry = {"internal_record_id": str(record.id), "document_id": str(link["document_id"]),
+                     "reason": link["reason"]}
+            if link.get("group_id"):
+                entry["group_id"] = str(link["group_id"])
+            if link.get("presumption"):
+                entry["presumption"] = True
+            report.evidence_links.append(entry)
             continue
         day = record.record_date or start
         memorial_item(("internal_record", record.id), record.memorial_minor, False, (day, day))
@@ -311,7 +352,7 @@ def company_report(conn: psycopg.Connection, company_id: UUID, month: str) -> Co
     # ---- cash ----------------------------------------------------------------
     for key in ("objects", "unassigned", "unmatched", "own"):
         report.cash[key] = 0
-    for key in ("unmatched_no_match", "unmatched_document_not_allocated"):
+    for key in ("unmatched_no_match", "unmatched_document_not_allocated", "unmatched_own"):
         report.cash_detail[key] = 0
     states = dict(conn.execute(
         "SELECT transaction_id, final_status::text FROM l3_transaction_status WHERE company_id = %s "
@@ -355,11 +396,17 @@ def company_report(conn: psycopg.Connection, company_id: UUID, month: str) -> Co
     for tx_id, amount, op_type, cp_kind in txs:
         report.balance_change_minor += amount
         status = states.get(tx_id)
-        if status == "own_transfer" or (status is None and (op_type == "own" or cp_kind == "own")):
+        if status == "own_transfer":
             report.cash["own"] += amount
             continue
+        if status is None and (op_type == "own" or cp_kind == "own"):
+            # looks like an own transfer, but nobody (person or built-in rule) decided it yet
+            report.cash["unmatched"] += amount
+            report.cash_detail["unmatched_own"] += amount
+            continue
         items = matches.by_transaction.get(tx_id, [])
-        chosen = [i for i in items if i["document_id"]] or [i for i in items if i["internal_record_id"]]
+        chosen = [i for i in items if i["document_id"]] or [i for i in items if i["internal_record_id"]
+                                                             and not i.get("evidence_only")]
         sign = 1 if amount >= 0 else -1
         parts: list[tuple[dict, int]] = []
         if chosen:
@@ -425,7 +472,9 @@ def render(report: CompanyReport, cost_object_label: str = "obiekty kosztowe") -
                + ("sald banku" if report.control_source == "bank_balances" else "sumy operacji"))
     out.append(f"  memoriałowo przychód {fmt_pln(m['control'].revenue_minor)}, koszt {fmt_pln(m['control'].cost_minor)}"
                f"; niesparowane kasowo: bez dopasowania {fmt_pln(report.cash_detail['unmatched_no_match'])}, "
-               f"dokument bez alokacji {fmt_pln(report.cash_detail['unmatched_document_not_allocated'])}")
+               f"dokument bez alokacji {fmt_pln(report.cash_detail['unmatched_document_not_allocated'])}"
+               + (f", transfery własne bez decyzji {fmt_pln(report.cash_detail['unmatched_own'])}"
+                  if report.cash_detail.get("unmatched_own") else ""))
     out.append("")
     out.append(f"{'Obiekt':34}{'przychód':>14}{'koszt':>14}{'marża':>14}{'kasowo (mies.)':>16}  w sugestiach")
     for o in report.objects:

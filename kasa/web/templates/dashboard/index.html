@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Kasa{% endblock %}
+{% block where %}{{ company }} · dane na {{ as_of }}{% endblock %}
+{% block body %}
+<style>
+  .dash-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; font-size: 13px; }
+  .pill { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .pill.ok { color: var(--ok); border-color: var(--ok); }
+  .pill.bad { color: var(--bad); border-color: var(--bad); }
+  .pill.warn { color: var(--warn); border-color: var(--warn); }
+  .value { font-size: 28px; font-weight: 650; letter-spacing: -0.4px; font-variant-numeric: tabular-nums; }
+  .bars { width: 100%; }
+  .bar-label { font-size: 13px; fill: var(--ink); }
+  .bar-value { font-size: 13px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .bar-pos { fill: var(--accent); }
+  .bar-neg { fill: var(--bad); }
+  .rows td { font-size: 14px; vertical-align: top; }
+  .rows td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .warnings { font-size: 13px; color: var(--warn); margin: 8px 0 0; padding-left: 18px; }
+  form.month { display: flex; gap: 8px; align-items: center; }
+  form.month input { width: auto; padding: 8px; }
+  form.month button { width: auto; padding: 8px 14px; }
+</style>
+<div class="dash-head">
+  <h2 style="margin: 4px 0">{{ title }}</h2>
+  <form class="month" method="get" action="/dashboard">
+    <label class="muted" for="month">miesiąc</label>
+    <input id="month" name="month" type="month" value="{{ month }}">
+    <button type="submit">Pokaż</button>
+  </form>
+</div>
+<p class="muted small">Każda karta to metryka@wersja z warstwy metryk - te same liczby dostaje agent (get_metric).
+Formuły nie da się tu wpisać.</p>
+
+{% for card in cards %}
+<section class="card" aria-label="{{ card.title }}">
+  <div class="dash-head"><strong>{{ card.title }}</strong>{% if card.ref %}<span class="muted small">{{ card.ref }}</span>{% endif %}</div>
+  {% if card.error %}
+    <div class="error">{{ card.error }}</div>
+  {% else %}
+  <div class="meta">
+    <span class="pill">dane na {{ card.as_of }}</span>
+    {% if card.period %}<span class="pill">{{ card.period }}</span>{% endif %}
+    <span class="pill {{ 'warn' if card.result.unconfirmed_share > 0 else 'ok' }}">w sugestiach: {{ card.unconfirmed_pl }}</span>
+    {% if card.checks_green %}<span class="pill ok">kontrole prawdy: zielone</span>
+    {% elif card.red_checks %}<span class="pill bad">kontrole prawdy: czerwone ({{ card.red_checks }})</span>
+    {% else %}<span class="pill warn">kontrole prawdy: nie liczone</span>{% endif %}
+  </div>
+  {% if card.value_pl %}<div class="value">{{ card.value_pl }}</div>{% endif %}
+
+  {% set bars = card.aging or card.bars %}
+  {% if bars %}
+  <svg class="bars" viewBox="0 0 320 {{ bars|length * 34 + 4 }}" role="img" aria-label="{{ card.title }}">
+    {% for b in bars %}
+    {% set y = loop.index0 * 34 %}
+    <text class="bar-label" x="0" y="{{ y + 12 }}">{{ b.label[:38] }}</text>
+    <rect class="{{ 'bar-neg' if b.negative else 'bar-pos' }}" x="{{ "%.1f"|format(b.x * 2.0) }}" y="{{ y + 16 }}" width="{{ "%.1f"|format(b.width * 2.0) }}" height="10" rx="2"></rect>
+    <text class="bar-value" x="320" y="{{ y + 25 }}" text-anchor="end">{{ b.value_pl }}</text>
+    {% endfor %}
+  </svg>
+  {% endif %}
+
+  {% if card.rows %}
+  <table class="rows">
+    {% for row in card.rows %}
+    <tr>
+      <td>{{ row.number or row.cost_object or row.account or row.row or row.label or row.counterparty or row['class'] or row.entry_reference or '-' }}
+        {% if row.counterparty and (row.number or row.entry_reference) %}<div class="muted small">{{ row.counterparty }}</div>{% endif %}
+        {% if row.bucket %}<div class="muted small">{{ row.bucket }}{% if row.due_date_missing %} · bez terminu (od wystawienia){% endif %}</div>{% endif %}
+        {% if row.subtype_pl %}<div class="muted small">{{ row.subtype_pl }} · {{ row.status }}</div>{% endif %}
+      </td>
+      <td class="num">{{ row.open_pl or row.balance_pl or row.amount_pl or row.memorial_pl or row.margin_pl or row.cash_pl or row.cards or '' }}
+        {% if row.cash_pl and row.memorial_pl %}<div class="muted small">kasowo {{ row.cash_pl }}</div>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+  {% if card.warnings %}
+  <ul class="warnings">{% for w in card.warnings[:3] %}<li>{{ w }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% endif %}
+</section>
+{% endfor %}
+
+{% if metric_proposals %}
+<section class="card"><strong>Propozycje metryk od agenta (pytania poza warstwą metryk)</strong>
+  <ul class="lines">{% for p in metric_proposals %}<li>{{ p.question }} <span class="muted small">({{ p.key or '-' }}, {{ p.created_at[:10] }})</span></li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% if reminder_drafts %}
+<section class="card"><strong>Szkice przypomnień o płatności (wysyłasz Ty)</strong>
+  {% for d in reminder_drafts %}<details><summary>{{ d.document }}</summary><p class="small" style="white-space: pre-wrap">{{ d.draft }}</p></details>{% endfor %}
+</section>
+{% endif %}
+{% endblock %}

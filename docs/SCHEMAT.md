@@ -1,7 +1,9 @@
-# Schemat bazy (fazy 1-4)
+# Schemat bazy (fazy 1-5)
 
-Migracje: `migrations/0001_core.sql` … `0011_phase4_queue_rules.sql`, stosowane przez `python -m kasa migrate`
-(każdy plik w osobnej transakcji, zapis w `schema_migrations` z sumą SHA-256; zmiana zastosowanego pliku = błąd).
+Migracje: `migrations/0001_core.sql` … `0011_phase4_queue_rules.sql`, `0012_phase5_metrics.sql` (faza 5) i `0013_matching_fixes.sql`,
+stosowane przez `python -m kasa migrate` w kolejności numerów; brakujący wcześniejszy numer zastosowany później
+nie przeszkadza (0013 nie zależy od 0012) (każdy plik w osobnej transakcji, zapis w `schema_migrations` z sumą
+SHA-256; zmiana zastosowanego pliku = błąd).
 Rozszerzenia PostgreSQL: `pgcrypto` (od 0006, szyfrowanie kluczy pseudonimów; `gen_random_uuid()` jest wbudowane).
 Sekcje do „Zasad triggerów” opisują fazę 1; tabele faz 2 i 3 są opisane na końcu.
 
@@ -175,3 +177,43 @@ Opis: `docs/KOLEJKA.md`, `docs/REGULY.md`.
 
 Nowy kod strażnika: `KS012` - obserwacja reguły, próbka audytu i wartownik kolejki zapisują wynik tylko raz.
 `python -m kasa check` sprawdza także triggery 0011 (`kasa/core/checks.py`, dopisane na końcu).
+
+## Poprawki przeglądu faz 4A i 4B (`0013_matching_fixes.sql`)
+
+Opis: `docs/DOPASOWANIE.md` (rozdz. 5, 7). Migracja używa tylko obiektów 0001-0011 - jest niezależna od 0012
+(faza 5), runner może ją zastosować przed nią.
+
+| Obiekt | Co to jest |
+| --- | --- |
+| `l3_match.evidence_only` | „Koszt jeden, dowodów wiele” (Krok 5; przegląd 4A/4B pkt 6): wiersz arkusza PM, który dowodzi tego samego kosztu co dokument dopasowania, w **tej samej** `group_id` co wiersz dokumentu, z `evidence_only = true` i kwotą 0 (`evidence.evidence_of` = dokumenty grupy). Pisze go `kasa.core.matching.decide.apply_match` z `linked_evidence` sugestii. Kontrola prawdy 2 go pomija; saldo wiersza arkusza jest nim zamknięte (koszt rozliczony przez dokument); cofnięcie decyzji cofa go razem z grupą. |
+| `l3_match_evidence_only_check` | `evidence_only` tylko z `internal_record_id`, `amount_minor = 0`, `document_amount_minor` 0/NULL i bez nazwanej różnicy. |
+| `l3_match_evidence_group_idx` | Indeks częściowy `group_id WHERE evidence_only` (raport: dowody grupy). |
+
+Bez zmian schematu (kod): `l1_counterparty.ibans` uzupełniany przez `kasa_upsert_counterparty` także po pierwszej
+decyzji człowieka, która dopasowała dokument kontrahenta znanego bankowi tylko z nazwy (pochodzenie:
+`l3_decision_log.evidence.iban_linked`); `calibration_result.metrics` z walidacją krzyżową (`labels`,
+`false_auto`, `upper_bound_error_wilson95`, `trustworthy`, `folds`, `nested`); `l1_bank_transaction` w wersji
+parsera 3 (`extracted.payer_hint`, `sensitive` z tytułu i nazwy kontrahenta listą bramki).
+
+## Faza 5 - metryki, agent, dashboard, eksport, retencja (`0012_phase5_metrics.sql`)
+
+Opis: `docs/METRYKI.md`, `docs/AGENT.md`, `docs/DASHBOARD.md`.
+
+| Obiekt | Co to jest |
+| --- | --- |
+| schematy `metrics`, `views`, `evidence` | Jedyne schematy roli agenta: definicje metryk; widoki pytań; lustra faktów. |
+| `metrics.metric_definition` | Definicja metryki: `key` + `version` (PK), `name_pl`, `description_pl`, `grain` (`company`/`cost_object`/`counterparty`/`document`/`day`), `unit` (`pln_minor`/`days`/`ratio`/`count`), `implementation` (`python:moduł:Klasa`), `dimensions`, `filters`, `traps_pl` (pułapki rozstrzygane definicją), `code_sha256` (skrót kodu definicji), `status` `active`/`deprecated`. Wiersz niezmienny - zmiana definicji = nowa wersja (KS013; jedyna zmiana `active → deprecated`). Zapisuje `python -m kasa metrics sync`. |
+| `agent_call_log` | Każde wywołanie narzędzia MCP: firma, narzędzie, argumenty po pseudonimizacji, model, wersja promptu, klient, czas, `status` `ok`/`refused`/`error`, `result_summary` (bez tekstów), `created_by` (rola). Tylko dopisywanie (KS001). |
+| `metric_proposal` | Pytanie spoza warstwy metryk (np. CIT): pytanie po pseudonimizacji, żądany klucz, powód, `proposed_by` `agent`/`human`, `status` `open`/`accepted`/`rejected` (decyzja raz, KS012). |
+| `export_log` | Każde udostępnienie danych biuru: kto, komu, kiedy, zakres (`scope`: miesiąc, format, tabele, liczba wierszy), pliki (`files`: nazwa, SHA-256, bajty, wiersze). Tylko dopisywanie. |
+| `suggestion_kind.payment_reminder` | Szkic przypomnienia o płatności (sugestia agenta; wysyła człowiek). |
+| `views.transactions`, `documents`, `receivables`, `cost_objects`, `allocations`, `queue` | Widoki pytań jednej firmy (`kasa_agent_company()`); tytuł i powód rangi jako `{"untrusted_text": …}`; osoby kodem; bez przelewów wrażliwych i wynagrodzeń osób. `transactions.related_transactions` - zwrot ↔ pierwotna wpłata. |
+| `evidence.<tabela>` | Lustra (`security_barrier`) `company`, `l0_raw` (tylko metadane), L1-L3, `truth_check_result`, `queue_state`, `document_lineage`, `title_semantics_current`, `rule_stage_effective` jednej firmy, z maskami danych osób (tytuł po pseudonimizacji, IBAN/nazwa osoby jako kod, bez telefonów, pola arkusza bez osoby i kontaktów, wynagrodzenie bez osoby, bez wejścia modelu, bez faktów sugestii). Buduje je `kasa_refresh_agent_views()` z bieżących kolumn tabel (także przy `metrics sync`). |
+| role `kasa_agent_ro`, `kasa_agent_suggest` | RO: `USAGE` + `SELECT` tylko na `metrics`/`views`/`evidence`, `statement_timeout = 15s`, `default_transaction_read_only`, `search_path = evidence, views, metrics, public`. Suggest: tylko `INSERT` do `l2_suggestion`, `metric_proposal`, `agent_call_log`, `statement_timeout = 15s`. `EXECUTE` funkcji zmieniających dane (`kasa_purge_raw`, `kasa_expire_*`, `kasa_anonymize_persons`, `kasa_refresh_agent_views`) odebrane `PUBLIC`. |
+| `kasa_agent_company()`, `kasa_tx_is_payroll(id)`, `kasa_doc_is_person(…)`, `kasa_party_display(id)`, `kasa_mask_internal_fields(…)`, `kasa_strip_phone_numbers(…)`, `kasa_rank_reason_masked(…)` | Funkcje widoków agenta: firma sesji, „ten przelew to wynagrodzenie osoby”, dokument osoby, nazwa kontrahenta po bramce, maski pól. `kasa_subject_exists` od 0012 `SECURITY DEFINER` (strażnik KS005 działa też dla roli suggest). |
+| `l1_semantics.input_sha256`, `input_chars`, `input_expires_at`, `input_expired_at` | Wejście modelu: skrót i długość na zawsze (trigger przy INSERT), tekst `input_pseudonymized` 90 dni; zeruje go tylko `kasa_expire_semantics_inputs()` (KS014; przegląd fazy 3, pkt 4 i 10). |
+| `anonymization_log`, `kasa_anonymize_persons(firma, przed, …)` | Jedyna ścieżka UPDATE surowych kolumn osób (`l1_bank_transaction.title_raw`, `counterparty_name_raw`, `counterparty_iban_raw` osoby, `extracted.phones`; `l1_internal_record.fields`; `l1_pdf_extraction.extracted` dokumentów osób; `l1_document.seller_name`/`buyer_name`/`payment_iban` rachunków osób; `l1_counterparty` osób bez późniejszych rekordów) - nadpisuje je formą pseudonimową, kwoty, daty, obiekty i firmy zostają; wpis w dzienniku (liczby wierszy per tabela, kto, kiedy, `xact_id`). Strażnik `kasa_raw_person_guard` (KS014) odrzuca każdą inną zmianę tych kolumn (przegląd fazy 2, pkt 3). |
+
+Nowe kody strażników: `KS013` definicja metryki niezmienna, `KS014` surowa kolumna osoby albo wejście modelu zmienione
+poza funkcją retencji. `python -m kasa check` sprawdza triggery 0012, role agenta i ostrzega o tekstach modelu po
+90 dniach (`kasa/core/checks.py`, dopisane na końcu); `python -m kasa retention run` je wygasza.

@@ -1,0 +1,49 @@
+# Dashboard ODM (faza 5): rozszerzenie decyduje o układzie, rdzeń tylko renderuje.
+# Karta = metryka@wersja + wymiary + filtry - nic więcej. Nie ma pola formuły ani SQL:
+# liczby liczy wyłącznie warstwa metryk (ta sama definicja co agent).
+# period: data_month (miesiąc stanu danych, domyślnie), previous_month albo RRRR-MM; as_of: data_day.
+# chart: number | table | aging (słupki wiekowania) | bars (słupki per wiersz, pole bar_field).
+title: ODM - liczby z warstwy metryk
+cards:
+  - metric: account_balances@1
+    title: Saldo rachunków (w tym VAT)
+    chart: table
+  - metric: receivables_open@1
+    title: Należności otwarte i wiek
+    chart: aging
+  - metric: margin_accrual@3
+    title: Marża per event (memoriałowo, cały event)
+    chart: bars
+    bar_field: margin_minor
+    label_field: cost_object
+  - metric: cash_contribution@1
+    title: Cash contribution per event (miesiąc)
+    chart: bars
+    bar_field: cash_minor
+    label_field: cost_object
+  - metric: company_result@1
+    title: Raport firmy - memoriałowo i kasowo
+    chart: table
+  - metric: costs_without_document@1
+    title: Koszty bez dokumentu (> 100 zł)
+    chart: table
+  - metric: allocation_coverage@1
+    title: Pokrycie alokacji
+    chart: bars
+    bar_field: amount_minor
+    label_field: row
+  - metric: payables_open@1
+    title: Zobowiązania otwarte
+    chart: aging
+  - metric: revenue_accrual_net@1
+    title: Przychód memoriałowy netto
+    chart: number
+  - metric: revenue_cash_gross@1
+    title: Przychód kasowy brutto (w tym zaliczki)
+    chart: number
+  - metric: dso_90@1
+    title: DSO 90
+    chart: number
+  - metric: queue_state@1
+    title: Kolejka przeglądu
+    chart: table

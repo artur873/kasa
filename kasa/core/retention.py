@@ -97,3 +97,80 @@ def expire_llm_payloads(conn: psycopg.Connection, *, now: datetime | None = None
     if now is None:
         return conn.execute("SELECT kasa_expire_llm_payloads()").fetchone()[0]
     return conn.execute("SELECT kasa_expire_llm_payloads(%s)", (now,)).fetchone()[0]
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 (migration 0012): the model input of l1_semantics, anonymization of persons, one run
+# (reviews: phase 1 point 3, phase 3 points 4 and 10). Nothing is deleted: texts are emptied or
+# overwritten by their pseudonymous form only by the database functions, which log what they did.
+# ---------------------------------------------------------------------------
+
+DEFAULT_PERSON_KEYS = ("osoba", "person", "imię i nazwisko", "imie i nazwisko", "nazwisko", "pracownik", "wykonawca")
+DEFAULT_DROP_KEYS = ("uwagi", "notes", "telefon", "tel", "tel.", "phone", "iban", "rachunek", "konto", "nr konta",
+                     "adres", "address", "pesel", "email", "e-mail")
+
+
+def expire_semantics_inputs(conn: psycopg.Connection, *, now: datetime | None = None) -> int:
+    """Empty the model inputs of ``l1_semantics`` past their 90 days (``kasa_expire_semantics_inputs``);
+    the SHA-256 and the length stay in ``input_sha256`` / ``input_chars``."""
+    if now is None:
+        return conn.execute("SELECT kasa_expire_semantics_inputs()").fetchone()[0]
+    return conn.execute("SELECT kasa_expire_semantics_inputs(%s)", (now,)).fetchone()[0]
+
+
+def overdue_payloads(conn: psycopg.Connection, *, now: datetime | None = None) -> dict[str, int]:
+    """Model texts kept past their retention (should be 0 after ``retention run``)."""
+    row = conn.execute(
+        """
+        SELECT (SELECT count(*) FROM llm_call_payload WHERE expired_at IS NULL AND expires_at <= coalesce(%(n)s, now())),
+               (SELECT count(*) FROM l1_semantics WHERE input_expired_at IS NULL
+                   AND input_expires_at <= coalesce(%(n)s, now()))
+        """,
+        {"n": now},
+    ).fetchone()
+    return {"llm_call_payload": int(row[0]), "l1_semantics_input": int(row[1])}
+
+
+def person_keys_for(extension_slug: str | None) -> list[str]:
+    """Columns of internal files that name a person (the ``person`` column of every import mapping)."""
+    keys = set(DEFAULT_PERSON_KEYS)
+    if extension_slug:
+        try:
+            from kasa.core.extension import get_extension
+
+            for mapping in get_extension(extension_slug).import_mappings.values():
+                spec = (getattr(mapping, "columns", None) or {}).get("person")
+                if spec is not None:
+                    keys |= {spec.source.casefold(), *(a.casefold() for a in spec.aliases)}
+        except Exception:  # noqa: BLE001 - the defaults cover the known files
+            pass
+    return sorted(keys)
+
+
+def anonymize_persons(conn: psycopg.Connection, company_id: UUID, before: date, *, actor: str | None = None,
+                      reason: str = "retencja: umowa + 1 rok (Krok 9)", shred_keys: bool = False) -> UUID | None:
+    """Overwrite the raw personal columns of the records dated before ``before`` with their pseudonymous form
+    (``kasa_anonymize_persons`` - the only UPDATE path the database allows for them, logged in
+    ``anonymization_log``). ``shred_keys``: also destroy the person keys created before that day."""
+    slug = conn.execute("SELECT extension_slug FROM company WHERE id = %s", (company_id,)).fetchone()
+    log_id = conn.execute(
+        "SELECT kasa_anonymize_persons(%s, %s, %s, %s, %s, %s)",
+        (company_id, before, actor, reason, person_keys_for(slug[0] if slug else None), list(DEFAULT_DROP_KEYS)),
+    ).fetchone()[0]
+    if shred_keys:
+        shred_pseudonyms(conn, company_id, created_before=datetime.combine(before, datetime.min.time()))
+    return log_id
+
+
+def anonymization_log(conn: psycopg.Connection, company_id: UUID) -> list[dict]:
+    rows = conn.execute(
+        "SELECT id, before_date, reason, counts, anonymized_by, anonymized_at FROM anonymization_log "
+        "WHERE company_id = %s ORDER BY anonymized_at, id", (company_id,),
+    ).fetchall()
+    return [{"id": r[0], "before": r[1], "reason": r[2], "counts": r[3], "by": r[4], "at": r[5]} for r in rows]
+
+
+def run_retention(conn: psycopg.Connection, *, now: datetime | None = None) -> dict[str, int]:
+    """One retention run (``python -m kasa retention run``): model prompts/answers and model inputs past 90 days."""
+    return {"llm_call_payload": expire_llm_payloads(conn, now=now),
+            "l1_semantics_input": expire_semantics_inputs(conn, now=now)}

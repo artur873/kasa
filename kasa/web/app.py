@@ -47,7 +47,7 @@ def _url_factory(url: str | None) -> ConnectionFactory:
 def create_app(*, database_url: str | None = None, connection_factory: ConnectionFactory | None = None,
                token: str | None = None, user: str | None = None, company: str | None = None) -> FastAPI:
     """The panel application. ``token=None`` takes ``KASA_WEB_TOKEN`` (empty = no token required)."""
-    from kasa.web.routers import control_sets, queue
+    from kasa.web.routers import control_sets, dashboard, queue
 
     app = FastAPI(title="Kasa - panel", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
     app.state.connection_factory = connection_factory or _url_factory(database_url)
@@ -84,6 +84,8 @@ def create_app(*, database_url: str | None = None, connection_factory: Connectio
     app.include_router(control_sets.api, prefix="/api")
     app.include_router(queue.router)
     app.include_router(queue.api, prefix="/api")
+    app.include_router(dashboard.router)
+    app.include_router(dashboard.api, prefix="/api")
     return app
 
 

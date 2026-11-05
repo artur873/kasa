@@ -1,0 +1,19 @@
+{
+  "account_balances@1": "d032821d416fa45cb8485505114348c88f612b256905450fbcd0cb427d8f051a",
+  "allocation_coverage@1": "ac6dddcde6bdaa00a535a4524f72da8427aee66a0d321dda25fd47b6fc58a023",
+  "cash_contribution@1": "65e8086bc77ea6edb142bc819a7b8cbed8efe840b561db77247da7022c97d7e9",
+  "cash_flow@1": "1ac3b3dc4ef3c0146fc38240f84b2ce4691a255e25d7e9aa6cc65357531c3277",
+  "company_result@1": "afbb2503092f692618c69b28377470268e89711c4257790dd3b61a01838b6c8a",
+  "costs_without_document@1": "6a5185818ade2d81829e6486200a25f6b26b57088e7aa37efc3ff6cecc728194",
+  "data_state@1": "f1099835f4409a44b2a3a7e2411ca27b8491458cd8783380609151747b8e790e",
+  "dso_90@1": "bc5e5201f314dd20a85037bc56b49feb4eee8f44a7b9997cd812a6775a63a21e",
+  "margin_accrual@1": "3e1b35752a6850170238eeb024dc1d797d6565a7dddf2f6db40358b102c6321c",
+  "margin_accrual@2": "953be1fa1b504da5ba3f70f903e7cafeeb38277d243adb952c78abbf80d76ce4",
+  "margin_accrual@3": "cbf92a56a0956b54c903c0bdd21e365c86825cd83f62476ee949fc941b6a4ea6",
+  "margin_fully_loaded@1": "48f78cd5cce529e0f71eadc08a0cedf263e8f041f3e6d9a92590690b10d274fe",
+  "payables_open@1": "05bae54abe918cef95d8bd9c5d82ceae377487af8c4d5edbba3fb4bda8ea1b8e",
+  "queue_state@1": "d85c61d9656fc0c3d858db24cfe74bb311401f0aaa2c0ee10e3b0066d048effe",
+  "receivables_open@1": "397621ab6f82bf5abef0e84bdf700816aabc73fdba34d4361abdfdf7314ce8ac",
+  "revenue_accrual_net@1": "f24eaed443a2856d8c666b8c9bc598ed190a542b5b151f457d20f47e4c9d97d9",
+  "revenue_cash_gross@1": "ac80ab5449c462f23b2cae4cf97e379c7286f74ce082fb59ff6bfcaafb419bc6"
+}

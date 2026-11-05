@@ -677,16 +677,24 @@ class MatchCoverageCheck(TruthCheck):
 
 def check_match_coverage(conn: psycopg.Connection, company_id: Any, period_start: date, period_end: date, *,
                          record: bool = True) -> MatchCoverageCheck:
-    """Truth check 2 for the transfers booked in the period and every invoice / row they are matched to."""
+    """Truth check 2 for the transfers booked in the period and every invoice / row they are matched to.
+
+    A row ``evidence_only`` (0013: a sheet row proving the same cost as the document of its group) is
+    evidence, not a settlement - it is left out.
+    """
+    evidence_only = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'l3_match' "
+        "AND column_name = 'evidence_only')"
+    ).fetchone()[0]
     rows = conn.execute(
-        """
+        f"""
         SELECT m.transaction_id, t.entry_reference, abs(t.amount_minor), m.document_id, m.internal_record_id,
                m.amount_minor, coalesce(m.document_amount_minor, m.amount_minor), m.difference_kind::text,
                m.difference_minor, l.head_id
           FROM l3_match m
           JOIN l1_bank_transaction t ON t.id = m.transaction_id
           LEFT JOIN document_lineage l ON l.document_id = m.document_id
-         WHERE m.company_id = %s AND m.status = 'active'
+         WHERE m.company_id = %s AND m.status = 'active' {"AND NOT m.evidence_only" if evidence_only else ""}
         """,
         (company_id,),
     ).fetchall()
@@ -855,4 +863,67 @@ def expected_triggers() -> set[tuple[str, str]]:  # noqa: F811 - extended, never
         ("queue_sentinel", "queue_sentinel_guard"),
         ("sensitive_exception", "sensitive_exception_append_only"),
         ("l3_decision_log", "l3_decision_log_undo_window"),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 (0012): retention warning, the agent's tables and guards.
+# ``python -m kasa check`` warns (does not fail) when model texts are kept past their 90 days -
+# ``python -m kasa retention run`` empties them (reviews: phase 3, points 4 and 10).
+# ---------------------------------------------------------------------------
+
+
+def _retention_check(conn: psycopg.Connection) -> str:
+    from kasa.core.retention import overdue_payloads
+
+    overdue = overdue_payloads(conn)
+    if not any(overdue.values()):
+        return "brak tekstów modelu po terminie (90 dni)"
+    return (f"OSTRZEŻENIE: po terminie 90 dni wciąż trzymamy {overdue['llm_call_payload']} promptów/odpowiedzi "
+            f"i {overdue['l1_semantics_input']} wejść modelu w l1_semantics - uruchom: python -m kasa retention run")
+
+
+def _agent_roles_check(conn: psycopg.Connection) -> str:
+    rows = dict(conn.execute(
+        "SELECT rolname, rolcanlogin FROM pg_roles WHERE rolname IN ('kasa_agent_ro', 'kasa_agent_suggest')"
+    ).fetchall())
+    assert set(rows) == {"kasa_agent_ro", "kasa_agent_suggest"}, "brak ról agenta (migracja 0012)"
+    leaks = conn.execute(
+        """
+        SELECT count(*) FROM information_schema.role_table_grants
+         WHERE grantee = 'kasa_agent_ro' AND (table_schema NOT IN ('metrics', 'views', 'evidence')
+                                              OR privilege_type <> 'SELECT')
+        """
+    ).fetchone()[0]
+    assert leaks == 0, f"rola kasa_agent_ro ma {leaks} uprawnień poza SELECT na metrics/views/evidence"
+    writes = conn.execute(
+        """
+        SELECT count(*) FROM information_schema.role_table_grants
+         WHERE grantee = 'kasa_agent_suggest' AND NOT (privilege_type = 'INSERT' AND table_schema = 'public'
+               AND table_name IN ('l2_suggestion', 'metric_proposal', 'agent_call_log'))
+        """
+    ).fetchone()[0]
+    assert writes == 0, f"rola kasa_agent_suggest ma {writes} uprawnień poza INSERT do sugestii i logu"
+    return "kasa_agent_ro: SELECT na metrics/views/evidence; kasa_agent_suggest: INSERT do sugestii, propozycji, logu"
+
+
+TRUTH_CHECKS.append(("Retencja: teksty modelu (90 dni)", _retention_check))
+TRUTH_CHECKS.append(("Role agenta (MCP)", _agent_roles_check))
+
+_expected_triggers_before_phase5 = expected_triggers
+
+
+def expected_triggers() -> set[tuple[str, str]]:  # noqa: F811 - extended, never edited
+    return _expected_triggers_before_phase5() | {
+        ("metric_definition", "metric_definition_guard"),
+        ("agent_call_log", "agent_call_log_append_only"),
+        ("metric_proposal", "metric_proposal_guard"),
+        ("export_log", "export_log_append_only"),
+        ("anonymization_log", "anonymization_log_append_only"),
+        ("l1_semantics", "l1_semantics_input_guard"),
+        ("l1_semantics", "l1_semantics_input_digest"),
+        ("l1_bank_transaction", "l1_bank_transaction_raw_person_guard"),
+        ("l1_internal_record", "l1_internal_record_raw_person_guard"),
+        ("l1_pdf_extraction", "l1_pdf_extraction_raw_person_guard"),
+        ("l1_document", "l1_document_raw_person_guard"),
     }
