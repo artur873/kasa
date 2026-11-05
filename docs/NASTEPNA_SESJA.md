@@ -30,3 +30,18 @@ Do tego czasu KASA_KSEF_PROVIDER i KASA_LLM_PROVIDER = mock.
 - GitHub (artur873/kasa) niepodpięty do Claude Code; kod przenoszony plikiem bundle.
 - Kategorie ODM: z arkusza użytkownika (w `kasa/extensions/odm/extension.yaml`).
 - Pytania do agenta: `docs/PYTANIA_AGENTA.md` wystarczą na start; zestaw rośnie w trakcie.
+
+## Supabase (stan 5.11.2026, wieczór)
+- Baza docelowa: projekt **odm** w organizacji ODM Partners (ref `wxdpjdymlbgnjdqkvrnd`, Frankfurt, Postgres 17),
+  wspólny z narzędziem „ruch w skrzynkach” (tabele `ruch`, `przebiegi` - nie ruszać).
+- Wszystkie 14 migracji kasy zastosowane przez konektor Supabase (MCP), wpisy w `schema_migrations` z sumami
+  kontrolnymi plików z repo, więc `python -m kasa migrate` na tej bazie widzi stan „nic do zrobienia”.
+  Zgodność z lokalną bazą sprawdzona: 45 tabel, 38 widoków, 60 funkcji `kasa_*`.
+- Wszystkie tabele w `public` mają włączone RLS bez polityk: API Supabase (anon/authenticated) nie widzi
+  danych kasy; kasa łączy się rolą `postgres` (bypassrls), więc dla niej nic się nie zmienia.
+- Kontener Claude Code NIE dosięga bazy bezpośrednio (brak DNS do `*.supabase.co` / `*.pooler.supabase.com`).
+  Dopóki użytkownik nie doda tych hostów do listy dozwolonych środowiska i nie ustawi `KASA_DATABASE_URL`
+  (Session pooler, port 5432, użytkownik `postgres.wxdpjdymlbgnjdqkvrnd`), zapytania do Supabase idą przez
+  konektor (`execute_sql` / `apply_migration`), a CLI kasy działa tylko na lokalnym Postgresie.
+- Nowe migracje: najpierw lokalnie (`python -m kasa migrate`), potem ten sam plik przez konektor
+  `apply_migration` + ręczny INSERT do `schema_migrations` (version, name, sha256 pliku).
