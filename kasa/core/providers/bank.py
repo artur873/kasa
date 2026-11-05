@@ -3,8 +3,9 @@
 Two implementations of :class:`BankProvider`:
 
 * :class:`MockEnableBanking` - reads ``<fixtures>/bank/enablebanking/`` (directory from
-  ``KASA_FIXTURES_DIR``, default ``fixtures/odm``); the files have the shape of the
-  EnableBanking API responses, so the same parser reads both.
+  ``KASA_FIXTURES_DIR``, default: the test company directory under ``fixtures/`` that has
+  bank data); the files have the shape of the EnableBanking API responses, so the same
+  parser reads both.
 * :class:`EnableBanking` - the real API at https://api.enablebanking.com. It needs
   ``KASA_EB_APP_ID`` (application id = ``kid`` of the JWT), ``KASA_EB_PRIVATE_KEY_PATH``
   (PEM private key of the application, RS256) and ``KASA_EB_SESSION_ID`` (session
@@ -36,7 +37,19 @@ from kasa.core.providers import provider_name
 log = logging.getLogger(__name__)
 
 FIXTURES_DIR_ENV = "KASA_FIXTURES_DIR"
-DEFAULT_FIXTURES_DIR = Path(__file__).resolve().parents[3] / "fixtures" / "odm"
+FIXTURES_ROOT = Path(__file__).resolve().parents[3] / "fixtures"
+
+
+def _default_fixtures_dir() -> Path:
+    """The first company directory of the test data that has bank files (the core names no company)."""
+    if FIXTURES_ROOT.is_dir():
+        for child in sorted(FIXTURES_ROOT.iterdir()):
+            if (child / "bank").is_dir():
+                return child
+    return FIXTURES_ROOT
+
+
+DEFAULT_FIXTURES_DIR = _default_fixtures_dir()
 EB_API_URL = "https://api.enablebanking.com"
 EB_APP_ID_ENV = "KASA_EB_APP_ID"
 EB_PRIVATE_KEY_ENV = "KASA_EB_PRIVATE_KEY_PATH"
@@ -47,14 +60,14 @@ CONSENT_MAX_DAYS = 180
 
 
 def fixtures_dir_path(explicit: str | Path | None = None) -> Path:
-    """Directory of the test data: ``explicit``, else ``KASA_FIXTURES_DIR``, else ``fixtures/odm``.
+    """Directory of the test data: ``explicit``, else ``KASA_FIXTURES_DIR``, else :data:`DEFAULT_FIXTURES_DIR`.
 
     A relative path is taken from the current directory when it exists there, otherwise from the repository.
     """
     path = Path(explicit or os.environ.get(FIXTURES_DIR_ENV) or DEFAULT_FIXTURES_DIR)
     if path.is_absolute() or path.exists():
         return path
-    return DEFAULT_FIXTURES_DIR.parents[1] / path
+    return FIXTURES_ROOT.parent / path
 
 
 from kasa.core.providers import ProviderError, ProviderNotConfigured  # noqa: E402  (shared exceptions)

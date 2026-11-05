@@ -17,6 +17,14 @@ cost_object:
     date_end:   {type: date, required: true, label: Koniec}
     city:       {type: text, label: Miasto}
 
+# Alokacja (faza 4). Arkusz PM to dokument wewnętrzny, ale nie twardy dowód alokacji, dopóki nie
+# dojrzeje reguła (D2): wiersz arkusza z nazwą eventu daje sugestię z odznaką wysoką, nie automat.
+# Zmiana na true włącza automat dla takich wierszy (jak dla jawnego identyfikatora w pozycji).
+# Osobodzień do podziału faktury zbiorczej = wiersz arkusza z umową zlecenie (hostessa, koordynacja).
+allocation:
+  internal_record_is_hard: false
+  person_day_settlement_types: [umowa zlecenie]
+
 # Lista startowa z briefingu (kroki 4-5, decyzja D9); do potwierdzenia przez użytkownika.
 categories:
   - IT/SaaS

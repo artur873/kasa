@@ -105,16 +105,23 @@ def test_booked_operation_supersedes_its_card_hold(conn, company):
     result = IngestResult(account.iban, "test")
     store_entries(conn, company, account, [booked], {}, result)
     assert result.pending_resolved == 1
+    # migration 0009 (review of phase 2, point 5): the hold is resolved by the booking, it is not a
+    # new version of the fact - superseded_by stays NULL, resolved_by_transaction_id points at the booking
     rows = conn.execute(
         """
-        SELECT p.entry_reference, b.entry_reference FROM l1_bank_transaction p
-          JOIN l1_bank_transaction b ON b.id = p.superseded_by WHERE p.company_id = %s
+        SELECT p.entry_reference, b.entry_reference, p.superseded_by FROM l1_bank_transaction p
+          JOIN l1_bank_transaction b ON b.id = p.resolved_by_transaction_id WHERE p.company_id = %s
         """, (company.id,)).fetchall()
-    assert rows == [("P1", "B1")]
+    assert rows == [("P1", "B1", None)]
     # the hold fetched again does not come back
     again = IngestResult(account.iban, "test")
     store_entries(conn, company, account, [hold], {}, again)
-    assert again.unchanged == 1 and _counts(conn, company.id)[:2] == (1, 0)
+    assert again.unchanged == 1 and _counts(conn, company.id) == (1, 1, 2)
+    assert conn.execute(
+        """
+        SELECT count(*) FROM l1_bank_transaction
+         WHERE company_id = %s AND status = 'pending' AND resolved_by_transaction_id IS NULL
+        """, (company.id,)).fetchone()[0] == 0
 
 
 def test_counterparties_own_transfers_and_nip(conn, ingested, rows_of, ground_truth):

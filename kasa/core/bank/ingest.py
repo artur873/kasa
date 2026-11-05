@@ -392,12 +392,17 @@ def _find_existing(conn: psycopg.Connection, account_id: UUID, entry: BankEntry,
 
 
 def _resolve_pending(conn: psycopg.Connection, account_id: UUID, booked_id: UUID, entry: BankEntry) -> bool:
-    """A booked operation supersedes the matching card hold (same amount, party, date ±3 days)."""
+    """A booked operation resolves the matching card hold (same amount, party, date ±3 days).
+
+    The hold stays a current fact (``superseded_by`` is only for versions of a fact); its
+    state is ``resolved_by_transaction_id`` = the booked operation (migration 0009).
+    """
     day = entry.transaction_date or entry.booking_date
     row = conn.execute(
         """
         SELECT id FROM l1_bank_transaction
-         WHERE account_id = %s AND status = 'pending' AND superseded_by IS NULL AND amount_minor = %s
+         WHERE account_id = %s AND status = 'pending' AND superseded_by IS NULL
+           AND resolved_by_transaction_id IS NULL AND amount_minor = %s
            AND coalesce(transaction_date, value_date, booking_date) BETWEEN %s::date - 3 AND %s::date + 3
            AND kasa_name_key(counterparty_name_raw) IS NOT DISTINCT FROM kasa_name_key(%s)
          ORDER BY abs(coalesce(transaction_date, value_date, booking_date) - %s::date), created_at
@@ -407,7 +412,7 @@ def _resolve_pending(conn: psycopg.Connection, account_id: UUID, booked_id: UUID
     ).fetchone()
     if row is None:
         return False
-    conn.execute("UPDATE l1_bank_transaction SET superseded_by = %s WHERE id = %s", (booked_id, row[0]))
+    conn.execute("UPDATE l1_bank_transaction SET resolved_by_transaction_id = %s WHERE id = %s", (booked_id, row[0]))
     return True
 
 

@@ -346,7 +346,30 @@ def _strptime(text: str, formats: Sequence[str]) -> datetime:
 
 
 # ---------------------------------------------------------------------------
-# Cost object candidates (interface; matching logic arrives in a later phase)
+# Allocation settings of a company
+# ---------------------------------------------------------------------------
+
+
+class AllocationSpec(BaseModel):
+    """How allocation treats the company's evidence (``allocation:`` in extension.yaml).
+
+    * ``internal_record_is_hard`` - an explicit assignment in an internal file (a row of a
+      sheet naming the cost object) is hard evidence: allocation by it may be automatic.
+      Off by default: an internal file is a document, but not hard evidence until a rule matures.
+    * ``person_day_settlement_types`` - settlement types of internal rows that count as one
+      person-day of work (the cascade of a collective invoice splits by person-days); empty =
+      every row with a person counts.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    internal_record_is_hard: bool = False
+    person_day_settlement_types: list[NonEmptyText] = []
+
+
+# ---------------------------------------------------------------------------
+# Cost object candidates. The core groups records (kasa/core/cost_objects_discovery/)
+# and calls the extension once per group; the extension says what the group is.
 # ---------------------------------------------------------------------------
 
 
@@ -393,6 +416,7 @@ class Extension(ABC):
     categories: list[str]
     import_mappings: dict[str, ColumnMapping]
     sensitive_words: list[str]
+    allocation: AllocationSpec = AllocationSpec()
 
     @abstractmethod
     def derive_cost_object_candidates(self, records: Sequence[CandidateRecord]) -> list[CostObjectCandidate]:
@@ -406,6 +430,10 @@ class Extension(ABC):
         """Validate attributes against the extension schema; return them JSON-ready."""
         model = self.cost_object_schema.model_validate(dict(attrs))
         return model.model_dump(mode="json", exclude_none=True)
+
+    def is_anchor_eligible(self, record: CandidateRecord) -> bool | None:
+        """May this record anchor a cost object candidate? None = the core decides (default rule)."""
+        return None
 
     def import_mapping(self, key: str) -> ColumnMapping:
         try:
@@ -432,6 +460,7 @@ class ExtensionConfig(BaseModel):
     categories: list[NonEmptyText] = []
     import_mappings: dict[Identifier, ColumnMapping] = {}
     sensitive_words: list[NonEmptyText] = []
+    allocation: AllocationSpec = AllocationSpec()
 
     @field_validator("categories")
     @classmethod
@@ -456,6 +485,7 @@ class YamlExtension(Extension):
         self.cost_object_schema = build_attrs_model(config.slug, config.cost_object, hooks)
         self.categories = list(config.categories)
         self.import_mappings = dict(config.import_mappings)
+        self.allocation = config.allocation
         words = [*BASELINE_SENSITIVE_WORDS, *config.sensitive_words]
         self.sensitive_words = list(dict.fromkeys(w.casefold() for w in words))
 
@@ -464,6 +494,10 @@ class YamlExtension(Extension):
 
     def cost_object_name(self, attrs: Mapping[str, Any]) -> str:
         return self.config.cost_object.name_template.format_map(dict(attrs))
+
+    def is_anchor_eligible(self, record: CandidateRecord) -> bool | None:
+        hook = getattr(self.hooks, "is_anchor_eligible", None)
+        return None if hook is None else hook(self, record)
 
     def derive_cost_object_candidates(self, records: Sequence[CandidateRecord]) -> list[CostObjectCandidate]:
         hook = getattr(self.hooks, "derive_cost_object_candidates", None)

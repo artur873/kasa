@@ -128,3 +128,30 @@ i są włączone oraz że każda tabela L1-L3 ma komplet kolumn pochodzenia.
 Nowe kody strażników: `KS008` klucz pseudonimu tylko do zniszczenia (0006), `KS009` zbiór kontrolny (zamrożenie,
 niezmienna tożsamość pozycji), `KS010` wygaszanie payloadów modelu tylko funkcją, `KS011` słowo wrażliwe tylko
 do wycofania.
+
+## Faza 4 - dopasowanie (`0009_phase4_matching.sql`)
+
+Opis silnika: `docs/DOPASOWANIE.md`.
+
+| Obiekt | Co to jest |
+| --- | --- |
+| `l3_transaction_status.awaiting_until` | Do kiedy przelew bez dokumentu czeka na dokument: zaliczka = data księgowania + 180 dni, karta = + 30 dni (przegląd fazy 1, pkt 5). |
+| `l3_match.related_transaction_id` | Trzeci cel dopasowania obok dokumentu i wiersza wewnętrznego: zwrot ↔ pierwotna wpłata, duplikat wpłaty ↔ jego zwrot (przegląd fazy 1, pkt 11). CHECK: dokładnie jeden z trzech celów; przelew nie wskazuje sam siebie; najwyżej jedno aktywne powiązanie danej pary. |
+| `match_difference_kind.correction` | Wiersz korekty w grupie dopasowań ma **ujemne** `amount_minor` i `document_amount_minor` (faktura 10 000 + korekta −2 000 = przelew 8 000; przegląd fazy 1, pkt 8). Saldo dokumentu = brutto łańcucha korekt − aktywne dopasowania; `status = 'revoked'` zdejmuje kwotę z salda. |
+| `l1_bank_transaction.resolved_by_transaction_id` | Blokada kartowa (`pending`) rozliczona zaksięgowaną operacją - stan, nie nowa wersja faktu (`superseded_by` zostaje tylko dla wersji); CHECK: zaksięgowana operacja nigdy nie jest „rozliczona”. Stare blokady z `superseded_by` przeniesione migracją (przegląd fazy 2, pkt 5). |
+| `bank_tx_status.expired` | Blokada, która wygasła bez księgowania. |
+| `calibration_result` | Wynik kalibracji progów automatu na zbiorze kontrolnym: `run_id`, firma, zbiór, `kind` (`match`), `params` (temperatura, przesunięcie, próg, minimalna przewaga), `metrics` (automaty, fałszywe automaty, zgodność kolejki, log-loss), `chosen` (najwyżej jeden na przebieg), `run_at`; tylko dopisywanie (KS001). Silnik czyta wybrane parametry ostatniego przebiegu. |
+| `kasa_seed_builtin_rules(company_id)`, trigger `company_builtin_rules` | Reguły wbudowane z briefingu (krok 4) w `l3_rule` dla każdej firmy, także nowej: `builtin:match_ksef_number`, `builtin:match_mpp_block`, `builtin:match_invoice_number_same_counterparty`, `builtin:match_single_open_invoice_exact_amount`, `builtin:own_transfer`, `builtin:no_document_zus_tax_fee`; etap `auto`, `method = 'human'`, `created_by = 'briefing-2026-11-03'`, w `evidence` cytat z Kroku 4. Strażnicy bez zmian: regułę zawiesza tylko człowiek (KS003), automat pisze tylko na regułę w etapie `auto` (KS004). |
+
+## Faza 4 - kandydaci na obiekty kosztowe i alokacja (`0010_phase4_allocation.sql`)
+
+Opis: `docs/ALOKACJA.md`.
+
+| Obiekt | Co to jest |
+| --- | --- |
+| `l2_cost_object_member` | Członek kandydata na obiekt kosztowy (przegląd fazy 1, pkt 10): kandydat (`candidate_id` → `l3_cost_object`), rodzaj rekordu (`cost_object_member_type`: `document_line`/`document`/`transaction`/`internal_record`/`email_case`), id rekordu, siła powiązania (`link_strength` 0-1, z modelu par), `is_anchor` (najwyżej jedna żywa kotwica na kandydata), status `open`/`accepted`/`rejected`/`expired` z decyzją, która go rozstrzygnęła, i komplet kolumn pochodzenia (`method` `code`/`model`, `human` = człowiek przy podziale lub połączeniu). Rekord musi istnieć w tej samej firmie (trigger, KS005); nic nie kasujemy (KS002). |
+| `l3_allocation.signal_strength`, `cascade_step` | Siła sygnału `A`-`D` (`NULL` = brak sygnału, UNASSIGNED albo podział człowieka) i krok kaskady faktury zbiorczej (`line_description`, `offer_match`, `offer_value`, `person_days`, `equal`, `inherited` - korekta dziedziczy podział faktury pierwotnej) (przegląd fazy 1, pkt 9). |
+| `pair_model_weights` | Wagi modelu par Fellegi-Sunter: firma, cecha, poziom, `m_prob` = P(poziom \| ten sam obiekt), `u_prob` = P(poziom \| różne), `pseudo_count` (siła priora Dirichleta), wersja, liczba decyzji i par, na których uczono. Wersja 0 (`company_id IS NULL`) = priory z migracji; każde przeuczenie po decyzji człowieka dopisuje pełną nową wersję firmy. Także `__prior__` (udział par prawdziwych), `__threshold__` (progi grupowania: `merge`, `min_link`, `member`, `high`, `margin`) i `__param__` (`rare_df_ratio`). Tylko dopisywanie (KS001). |
+| `cost_object_pair_verdict`, `cost_object_pair_decision` | Werdykt człowieka o parze obiektów (`a_id < b_id`): `different` (przycisk „na pewno różne” i podział - odkrywanie nigdy ich nie skleja) albo `same` (połączenie); z decyzją w dzienniku; obowiązuje najnowszy werdykt pary. Tylko dopisywanie. |
+| `l2_suggestion_subject_type_check` | Podmiotem sugestii może być też obiekt kosztowy (karta kandydata, `kind = cost_object_candidate`) i reguła (karta reguły, `kind = rule_candidate`). |
+| `kasa_seed_builtin_allocation_rule(company_id)`, trigger `company_builtin_allocation_rule` | Reguła wbudowana `builtin:allocation_explicit_identifier` (etap `auto`, `method = 'human'`, `created_by = 'briefing-2026-11-03'`) dla każdej firmy, także nowej: automat alokacji tylko dla sygnału A bez sprzeczności (decyzja D3); zawieszenie reguły wyłącza automat. |

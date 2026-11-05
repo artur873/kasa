@@ -136,8 +136,9 @@ def test_a_new_extension_creates_its_own_cost_object_kind(conn, make, testco_pat
 
 
 def test_a_core_does_not_know_company_concepts():
+    # The whole core package, subpackages included (phase 4: cost object discovery, allocation, reports).
     core_files = [
-        *sorted((REPO / "kasa" / "core").glob("*.py")),
+        *sorted((REPO / "kasa" / "core").rglob("*.py")),
         REPO / "kasa" / "__init__.py",
         REPO / "kasa" / "__main__.py",
         REPO / "kasa" / "extensions" / "__init__.py",

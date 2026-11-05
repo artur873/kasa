@@ -652,3 +652,186 @@ TRUTH_CHECKS: list[tuple[str, Callable[[psycopg.Connection], str]]] = [
     ("Kontrola prawdy 1: ciągłość sald", _bank_truth_check(check_balance_continuity)),
     ("Kontrola prawdy 5: MPP", _bank_truth_check(check_mpp)),
 ]
+
+
+# ---------------------------------------------------------------------------
+# Truth check 2 (briefing, "Kontrola prawdy"): coverage of matches (phase 4, matching).
+# The sum of active matches never exceeds the amount of the transfer, nor the amount of the
+# invoice (with its chain of corrections), nor the amount of an internal row - plus a NAMED
+# tolerance (difference_kind = 'tolerance'). Revoked matches do not count.
+# ---------------------------------------------------------------------------
+
+MATCH_COVERAGE_CHECK = "match_coverage"
+
+
+@dataclass(frozen=True)
+class MatchCoverageCheck(TruthCheck):
+    def summary(self) -> str:
+        d = self.detail
+        text = (f"przelewy z dopasowaniem {d.get('transactions', 0)}, faktury (łańcuchy) {d.get('documents', 0)}, "
+                f"wiersze wewnętrzne {d.get('internal_records', 0)}")
+        problems = len(d.get("transaction_violations", [])) + len(d.get("document_violations", [])) \
+            + len(d.get("record_violations", []))
+        return text + ("" if self.ok else f"; przekroczenia: {problems}")
+
+
+def check_match_coverage(conn: psycopg.Connection, company_id: Any, period_start: date, period_end: date, *,
+                         record: bool = True) -> MatchCoverageCheck:
+    """Truth check 2 for the transfers booked in the period and every invoice / row they are matched to."""
+    rows = conn.execute(
+        """
+        SELECT m.transaction_id, t.entry_reference, abs(t.amount_minor), m.document_id, m.internal_record_id,
+               m.amount_minor, coalesce(m.document_amount_minor, m.amount_minor), m.difference_kind::text,
+               m.difference_minor, l.head_id
+          FROM l3_match m
+          JOIN l1_bank_transaction t ON t.id = m.transaction_id
+          LEFT JOIN document_lineage l ON l.document_id = m.document_id
+         WHERE m.company_id = %s AND m.status = 'active'
+        """,
+        (company_id,),
+    ).fetchall()
+    in_period = {r[0] for r in conn.execute(
+        """
+        SELECT id FROM l1_bank_transaction
+         WHERE company_id = %s AND superseded_by IS NULL AND status = 'booked' AND booking_date BETWEEN %s AND %s
+        """,
+        (company_id, period_start, period_end),
+    ).fetchall()}
+    docs = {r[0]: r[1:] for r in conn.execute(
+        """
+        SELECT d.id, d.kind::text, d.gross_minor, d.number_raw,
+               (SELECT l.head_id FROM document_lineage l WHERE l.document_id = d.corrects_document_id)
+          FROM l1_document d WHERE d.company_id = %s AND d.superseded_by IS NULL
+        """,
+        (company_id,),
+    ).fetchall()}
+
+    def base_of(doc_id: Any) -> Any:
+        seen = set()
+        while doc_id in docs and docs[doc_id][0] == "correction" and docs[doc_id][3] in docs and doc_id not in seen:
+            seen.add(doc_id)
+            doc_id = docs[doc_id][3]
+        return doc_id
+
+    per_tx: dict[Any, dict[str, Any]] = {}
+    per_chain: dict[Any, dict[str, Any]] = {}
+    per_record: dict[Any, int] = {}
+    touched_chains, touched_records = set(), set()
+    for tx_id, ref, amount, document_id, record_id, tx_side, doc_side, kind, diff, head in rows:
+        tolerance = abs(int(diff)) if kind == "tolerance" and diff is not None else 0
+        bucket = per_tx.setdefault(tx_id, {"ref": ref, "amount": int(amount), "sum": 0, "tolerance": 0})
+        bucket["sum"] += int(tx_side)
+        bucket["tolerance"] += tolerance
+        if document_id is not None:
+            base = base_of(head or document_id)
+            chain = per_chain.setdefault(base, {"sum": 0, "tolerance": 0})
+            chain["sum"] += int(doc_side)
+            chain["tolerance"] += tolerance
+            if tx_id in in_period:
+                touched_chains.add(base)
+        if record_id is not None:
+            per_record[record_id] = per_record.get(record_id, 0) + int(doc_side)
+            if tx_id in in_period:
+                touched_records.add(record_id)
+    chain_gross: dict[Any, int] = {}
+    for doc_id, (_kind, gross, _number, _corrects) in docs.items():
+        base = base_of(doc_id)
+        chain_gross[base] = chain_gross.get(base, 0) + int(gross)
+
+    tx_violations = []
+    for tx_id, b in per_tx.items():
+        if tx_id in in_period and (b["sum"] > b["amount"] + b["tolerance"] or b["sum"] < 0):
+            tx_violations.append({"transaction_id": str(tx_id), "entry_reference": b["ref"], "amount_minor": b["amount"],
+                                  "matched_minor": b["sum"], "tolerance_minor": b["tolerance"]})
+    doc_violations = []
+    for base in touched_chains:
+        gross = chain_gross.get(base, 0)
+        c = per_chain[base]
+        over = c["sum"] > gross + c["tolerance"] if gross >= 0 else c["sum"] < gross - c["tolerance"]
+        if over:
+            doc_violations.append({"document_id": str(base), "number": docs.get(base, (None, None, None))[2],
+                                   "gross_minor": gross, "matched_minor": c["sum"], "tolerance_minor": c["tolerance"]})
+    record_violations = []
+    if touched_records:
+        amounts = dict(conn.execute(
+            "SELECT id, amount_minor FROM l1_internal_record WHERE id = ANY(%s)", (list(touched_records),)
+        ).fetchall())
+        for record_id in touched_records:
+            if amounts.get(record_id) is not None and per_record[record_id] > abs(int(amounts[record_id])):
+                record_violations.append({"internal_record_id": str(record_id), "amount_minor": amounts[record_id],
+                                          "matched_minor": per_record[record_id]})
+    detail = {
+        "transactions": sum(1 for t in per_tx if t in in_period),
+        "documents": len(touched_chains),
+        "internal_records": len(touched_records),
+        "transaction_violations": tx_violations[:50],
+        "document_violations": doc_violations[:50],
+        "record_violations": record_violations[:50],
+    }
+    ok = not tx_violations and not doc_violations and not record_violations
+    result = MatchCoverageCheck(company_id, MATCH_COVERAGE_CHECK, None, period_start, period_end, ok, detail)
+    if record:
+        record_truth_check(conn, result)
+    return result
+
+
+TRUTH_CHECKS.append(("Kontrola prawdy 2: pokrycie dopasowań", _bank_truth_check(check_match_coverage)))
+
+
+# ---------------------------------------------------------------------------
+# Truth check 3 (briefing, "Kontrola prawdy"): allocations = 100%.
+# The shares of the allocations in force of every subject sum to 1.000000 exactly (or the
+# subject has no allocation). Phase 4B, migration 0010.
+# ---------------------------------------------------------------------------
+
+ALLOCATION_SHARES_CHECK = "allocation_shares"
+
+# 0010: members of a cost object candidate are L2 rows with the L2 guards.
+L2_TABLES = (*L2_TABLES, "l2_cost_object_member")
+
+
+def check_allocation_shares(conn: psycopg.Connection, company_id: Any, period_start: date | None = None,
+                            period_end: date | None = None, *, record: bool = True) -> TruthCheck:
+    """Truth check 3 for one company: every subject's active shares sum to 1.000000 (to the millionth).
+
+    The period is informative (the dates of the allocations checked); every active allocation of
+    the company is checked, whatever its date.
+    """
+    rows = conn.execute(
+        """
+        SELECT subject_type::text, subject_id, sum(share), count(*), min(created_at)::date, max(created_at)::date
+          FROM l3_allocation WHERE company_id = %s AND status = 'active'
+         GROUP BY subject_type, subject_id
+        """,
+        (company_id,),
+    ).fetchall()
+    bad = [{"subject_type": r[0], "subject_id": str(r[1]), "share_sum": str(r[2]), "rows": r[3]}
+           for r in rows if r[2] != 1]
+    today = date.today()
+    start = period_start or min((r[4] for r in rows), default=today)
+    end = period_end or max((r[5] for r in rows), default=today)
+    detail = {"subjects": len(rows), "rows": sum(r[3] for r in rows), "violations": bad[:50],
+              "violations_count": len(bad)}
+    result = TruthCheck(company_id, ALLOCATION_SHARES_CHECK, None, min(start, end), max(start, end), not bad, detail)
+    if record:
+        record_truth_check(conn, result)
+    return result
+
+
+def _allocation_truth_check(conn: psycopg.Connection) -> str:
+    companies = conn.execute(
+        "SELECT DISTINCT c.id, c.slug FROM company c JOIN l3_allocation a ON a.company_id = c.id ORDER BY c.slug"
+    ).fetchall()
+    if not companies:
+        return "brak alokacji"
+    failed, subjects = [], 0
+    for company_id, slug in companies:
+        result = check_allocation_shares(conn, company_id)
+        subjects += result.detail["subjects"]
+        if not result.ok:
+            failed.append(f"{slug}: {result.detail['violations_count']} podmiotów z udziałami różnymi od 100%")
+    assert not failed, "; ".join(failed)
+    return f"udziały = 100% dla {subjects} podmiotów"
+
+
+TRUTH_CHECKS.append(("Kontrola prawdy 3: alokacje = 100%", _allocation_truth_check))

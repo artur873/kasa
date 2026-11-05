@@ -277,7 +277,7 @@ def _payment(r: _Reader, fa: etree._Element, issues: list[str]) -> tuple[dict[st
             entry["description"] = {
                 "quantity": r.text(opis, "Ilosc"),
                 "unit": r.text(opis, "Jednostka"),
-                "from_event": r.text(opis, "ZdarzeniePoczatkowe"),
+                "start_trigger": r.text(opis, "ZdarzeniePoczatkowe"),
             }
         terms.append(entry)
     partial = [
