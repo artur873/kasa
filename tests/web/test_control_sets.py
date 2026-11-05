@@ -115,7 +115,7 @@ def test_invalid_labels_are_refused(conn, loaded):
         cs.save_label(conn, costs.id, cost_item, {"category": "Bitcoin", "unassigned": True}, labeled_by="artur")
     with pytest.raises(cs.ControlSetError, match="100%"):
         cs.save_label(conn, costs.id, cost_item, {"split": [{"name": "A", "share": "0.5"}]}, labeled_by="artur")
-    stored = cs.save_label(conn, costs.id, cost_item, {"category": "Noclegi", "cost_object": "Gala ACME 2026"},
+    stored = cs.save_label(conn, costs.id, cost_item, {"category": "Realizacja eventu / Logistyczne", "cost_object": "Gala ACME 2026"},
                            labeled_by="artur")
     assert stored["label"]["cost_object"] == "Gala ACME 2026"
 

@@ -25,19 +25,31 @@ allocation:
   internal_record_is_hard: false
   person_day_settlement_types: [umowa zlecenie]
 
-# Lista startowa z briefingu (kroki 4-5, decyzja D9); do potwierdzenia przez użytkownika.
+# Lista kategorii z arkusza użytkownika (5.11.2026, Kategorie_ODM_1.xlsx), format "Grupa / Kategoria".
 categories:
-  - IT/SaaS
-  - Czynsz biura
-  - ZUS
-  - PIT od umów cywilnoprawnych
-  - Podatki (US)
-  - Prowizje bankowe
-  - Zaliczki
-  - Kaucje
-  - Noclegi
-  - Personel eventowy
-  - Inne
+  - Personel eventowy / Hostessy i obsługa (umowa zlecenie)
+  - Personel eventowy / Hostessy i obsługa (BLIK)
+  - Personel eventowy / Podwykonawcy z fakturą (dzieło/B2B)
+  - Personel eventowy / Wynagrodzenia (agregat)
+  - Realizacja eventu / Prowizje
+  - Realizacja eventu / Logistyczne
+  - Realizacja eventu / Pozostałe
+  - Biuro / Czynsz i media biura
+  - Biuro / Telefonia i internet
+  - Biuro / IT i subskrypcje (SaaS)
+  - Biuro / Leasing i auto
+  - Biuro / Księgowość i doradztwo
+  - Biuro / Marketing i reprezentacja
+  - Core / Project managerowie
+  - Core / Wynagrodzenia zarząd
+  - Wynagrodzenia i daniny / ZUS
+  - Wynagrodzenia i daniny / PIT od umów cywilnoprawnych
+  - Podatki i finanse / VAT i inne podatki (US)
+  - Podatki i finanse / Prowizje i opłaty bankowe, odsetki
+  - Przepływy niekosztowe / Zaliczki i kaucje (do rozliczenia)
+  - Przepływy niekosztowe / Transfery własne
+  - Przepływy niekosztowe / Zwroty i nadpłaty
+  - Inne / Inne / do wyjaśnienia
 
 import_mappings:
   # Arkusz PM: rozliczenie wewnętrzne, np. "Kowalska, 12.03, Allegro, 450".

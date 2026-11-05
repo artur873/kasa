@@ -107,16 +107,16 @@ def test_search_by_amount_and_open_invoices_of_the_counterparty(client, conn, lo
 def test_cost_card_and_sentinel_flow_to_export(client, conn, loaded):
     set_id = _create(client, kind="cost", size=3)
     html = client.get(f"/control-sets/{set_id}/card").text
-    assert "Kategoria" in html and "UNASSIGNED" in html and "Noclegi" in html and not _clean(html)
+    assert "Kategoria" in html and "UNASSIGNED" in html and "Realizacja eventu / Logistyczne" in html and not _clean(html)
     items = conn.execute("SELECT id, is_sentinel, sentinel_expected FROM control_set_item WHERE set_id = %s "
                          "ORDER BY order_no", (set_id,)).fetchall()
     assert sum(1 for i in items if i[1]) == 1
     for item_id, is_sentinel, expected in items:
-        form = {"category": "Inne", "unassigned": "1"}
+        form = {"category": "Inne / Inne / do wyjaśnienia", "unassigned": "1"}
         if is_sentinel and expected.get("cost_object"):
-            form = {"category": "Inne", "cost_object": expected["cost_object"]}
+            form = {"category": "Inne / Inne / do wyjaśnienia", "cost_object": expected["cost_object"]}
         elif is_sentinel and expected.get("split"):
-            form = {"category": "Inne", "split": "\n".join(f"{s['name']}; {float(s['share']) * 100:.4f}%"
+            form = {"category": "Inne / Inne / do wyjaśnienia", "split": "\n".join(f"{s['name']}; {float(s['share']) * 100:.4f}%"
                                                            for s in expected["split"])}
         response = client.post(f"/control-sets/{set_id}/items/{item_id}", data=form, follow_redirects=False)
         assert response.status_code == 303, response.text

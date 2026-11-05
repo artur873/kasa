@@ -238,12 +238,12 @@ def test_e_rule_from_two_months_matures_through_observations_and_one_correction_
     orange = counterparty(gconn, odm.id, "Orange%")
     # synthetic history: 6 ZUS transfers and 6 Orange transfers in two months, categorized by the person
     decide_category_by_person(gconn, odm.id, synthetic_transfers(gconn, odm.id, zus,
-                                                                 months(date(2026, 8, 1), 2, per_month=3)), "ZUS")
+                                                                 months(date(2026, 8, 1), 2, per_month=3)), "Wynagrodzenia i daniny / ZUS")
     decide_category_by_person(gconn, odm.id, synthetic_transfers(
         gconn, odm.id, orange, months(date(2026, 8, 1), 2, per_month=3), amount_minor=-39_000,
-        title="F/4001/{month}", op_type="transfer"), "IT/SaaS")
+        title="F/4001/{month}", op_type="transfer"), "Biuro / IT i subskrypcje (SaaS)")
     build.build(gconn, odm)
-    zus_card = _card(gconn, odm.id, "rule_candidate", "ZUS")
+    zus_card = _card(gconn, odm.id, "rule_candidate", "Wynagrodzenia i daniny / ZUS")
     orange_card = _card(gconn, odm.id, "rule_candidate", "Orange")
     assert zus_card and orange_card
     card = actions.card(gconn, zus_card["id"])
@@ -258,9 +258,9 @@ def test_e_rule_from_two_months_matures_through_observations_and_one_correction_
     assert stage() == ("hint", 0, False)
     # every further decision of the person is an observation of the rule
     more = synthetic_transfers(gconn, odm.id, zus, months(date(2020, 1, 1), 40, per_month=2))
-    decide_category_by_person(gconn, odm.id, more[:30], "ZUS")
+    decide_category_by_person(gconn, odm.id, more[:30], "Wynagrodzenia i daniny / ZUS")
     assert stage() == ("shadow", 30, False)
-    decide_category_by_person(gconn, odm.id, more[30:73], "ZUS")
+    decide_category_by_person(gconn, odm.id, more[30:73], "Wynagrodzenia i daniny / ZUS")
     assert stage() == ("shadow", 73, True)
     build.build(gconn, odm)
     ready = _card(gconn, odm.id, "rule_ready", rule_key)

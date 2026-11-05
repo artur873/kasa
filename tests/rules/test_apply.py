@@ -59,7 +59,7 @@ def test_scope_known_counterparties_only_and_builtin_rules_are_returned(qconn, o
     zus = counterparty(qconn, odm.id, "Zakład Ubezpieczeń%")
     key = "R-T1"
     _rule(qconn, odm.id, key, {"all": [{"field": "op_type", "op": "eq", "value": "zus"}]},
-          {"kind": "category", "category": "ZUS"}, stage="hint",
+          {"kind": "category", "category": "Wynagrodzenia i daniny / ZUS"}, stage="hint",
           scope={"counterparties": [str(zus)], "subject_types": ["transaction"]})
     tx = qconn.execute("SELECT id FROM l1_bank_transaction WHERE counterparty_id = %s", (zus,)).fetchone()[0]
     facts = subject_facts(qconn, odm.id, "transaction", tx)
@@ -87,11 +87,11 @@ def test_canonical_counterparty_twelve_ibans_are_one_orange(qconn, odm):
 
 def test_stages_candidate_and_suspended_never_hit_dormant_comes_back_as_hint(qconn, odm):
     pattern = {"all": [{"field": "op_type", "op": "eq", "value": "zus"}]}
-    _rule(qconn, odm.id, "R-CAND", pattern, {"kind": "category", "category": "ZUS"}, stage="candidate")
-    _rule(qconn, odm.id, "R-SUSP", pattern, {"kind": "category", "category": "ZUS"}, stage="suspended")
-    _rule(qconn, odm.id, "R-OLD", pattern, {"kind": "category", "category": "ZUS"}, stage="auto",
+    _rule(qconn, odm.id, "R-CAND", pattern, {"kind": "category", "category": "Wynagrodzenia i daniny / ZUS"}, stage="candidate")
+    _rule(qconn, odm.id, "R-SUSP", pattern, {"kind": "category", "category": "Wynagrodzenia i daniny / ZUS"}, stage="suspended")
+    _rule(qconn, odm.id, "R-OLD", pattern, {"kind": "category", "category": "Wynagrodzenia i daniny / ZUS"}, stage="auto",
           created_at=datetime.now(UTC) - timedelta(days=400))      # 13 months without a hit
-    _rule(qconn, odm.id, "R-NEW", pattern, {"kind": "category", "category": "ZUS"}, stage="auto")
+    _rule(qconn, odm.id, "R-NEW", pattern, {"kind": "category", "category": "Wynagrodzenia i daniny / ZUS"}, stage="auto")
     stages = dict(qconn.execute("SELECT rule_key, effective_stage::text FROM rule_stage_effective "
                                 "WHERE rule_key IN ('R-OLD', 'R-NEW')").fetchall())
     assert stages == {"R-OLD": "dormant", "R-NEW": "auto"}
@@ -110,16 +110,16 @@ def test_conflict_more_specific_with_evidence_wins_otherwise_both_to_the_queue()
 
     a = {"field": "counterparty_id", "op": "eq", "value": "x"}
     b = {"field": "title_regex", "op": "regex", "value": "abonament"}
-    general, specific = hit("R-1", [a], "IT/SaaS"), hit("R-22", [a, b], "Inne")
+    general, specific = hit("R-1", [a], "Biuro / IT i subskrypcje (SaaS)"), hit("R-22", [a, b], "Inne / Inne / do wyjaśnienia")
     assert [h.rule_key for h in resolve_conflicts([general, specific])] == ["R-22"]
     # the specific one without evidence does not win - both variants, capped at hint
-    out = resolve_conflicts([general, hit("R-22", [a, b], "Inne", evidence=0)])
+    out = resolve_conflicts([general, hit("R-22", [a, b], "Inne / Inne / do wyjaśnienia", evidence=0)])
     assert {h.rule_key for h in out} == {"R-1", "R-22"} and all(h.conflict and h.stage == "hint" for h in out)
     # not comparable (different conditions): never "the first one wins"
-    out = resolve_conflicts([hit("R-1", [a], "IT/SaaS"), hit("R-3", [b], "Inne")])
+    out = resolve_conflicts([hit("R-1", [a], "Biuro / IT i subskrypcje (SaaS)"), hit("R-3", [b], "Inne / Inne / do wyjaśnienia")])
     assert len(out) == 2 and all(h.conflict and h.stage == "hint" for h in out)
     # the same claim twice is no conflict
-    assert not any(h.conflict for h in resolve_conflicts([general, hit("R-4", [b], "IT/SaaS")]))
+    assert not any(h.conflict for h in resolve_conflicts([general, hit("R-4", [b], "Biuro / IT i subskrypcje (SaaS)")]))
 
 
 def test_matching_engine_uses_a_learned_rule_in_auto_as_hard_evidence(qconn, odm):

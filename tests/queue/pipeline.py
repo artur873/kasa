@@ -179,7 +179,7 @@ def click_queue(conn: psycopg.Connection, company, *, max_cards: int = 600) -> C
                     expected = expected_allocations(conn, company, event_map(conn, company), truth)
                 _press_allocation(conn, item, card, expected.get((item["subject_type"], item["subject_id"])), log)
             elif kind == "sensitive":
-                actions.answer(conn, item["id"], "accept", decided_by=USER, extra={"category": "Inne"})
+                actions.answer(conn, item["id"], "accept", decided_by=USER, extra={"category": "Inne / Inne / do wyjaśnienia"})
                 log.buttons["category"] += 1
             else:
                 log.unexpected.append(f"{kind} {item['subject_id']}")

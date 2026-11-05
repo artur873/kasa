@@ -155,9 +155,9 @@ def test_sensitive_card_category_by_the_person(qconn, odm):
     item = next(i for i in actions.list_items(qconn, odm.id) if i["card_kind"] == "sensitive")
     with pytest.raises(dec.DecisionError):
         actions.answer(qconn, item["id"], "accept", decided_by="artur")          # no category chosen
-    reply = actions.answer(qconn, item["id"], "accept", decided_by="artur", extra={"category": "Inne"})
+    reply = actions.answer(qconn, item["id"], "accept", decided_by="artur", extra={"category": "Inne / Inne / do wyjaśnienia"})
     assert qconn.execute("SELECT category, method::text FROM l3_category_decision WHERE decision_id = %s",
-                         (reply["decision_ids"][0],)).fetchone() == ("Inne", "human")
+                         (reply["decision_ids"][0],)).fetchone() == ("Inne / Inne / do wyjaśnienia", "human")
     with pytest.raises(dec.DecisionError):
         dec.decide_category(qconn, odm.id, "transaction", item["subject_id"], "Nie ma takiej", decided_by="artur")
 
