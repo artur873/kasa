@@ -394,19 +394,23 @@ def signals_for(subject: Subject, ctx: AllocationContext) -> list[AllocationSign
                          score=SCORES["tie"], tags=("internal_file_assignment", "tie"))
             explicit_done = True
 
-    # A: explicit identifier in the line / title / text, or several objects named (cascade)
-    named = [] if explicit_done else named_objects(subject.tokens, profiles)
+    # A: explicit identifier in the line / title / text, or several objects named (cascade); a token is
+    # unique among the objects within ±90 days of the subject's dates (review of 4B, point 8)
+    named = [] if explicit_done else named_objects(subject.tokens, profiles, around=subject.window)
     if len(named) == 1:
         profile, _hits, unique_hits = named[0]
         against = contradictions(subject, profile)
         where = {"line": "pozycji", "document": "dokumencie", "transaction": "tytule",
                  "internal_record": "wierszu"}.get(subject.subject_type, "tekście")
+        dated = subject.window is not None
         if not against:
+            # without any date on the subject the uniqueness has no window: a "high" suggestion, not automatic
+            scope = " w oknie ±90 dni" if dated else "; brak daty na podmiocie - bez automatu"
+            tags = ("explicit_identifier", *(f"unique_token:{t}" for t in sorted(unique_hits)),
+                    *(() if dated else ("no_date",)))
             opts.add([(profile.id, Fraction(1))], "A",
-                     f"nazwa obiektu w {where}: {', '.join(sorted(unique_hits))} (unikalny token) - {profile.name}",
-                     score=SCORES["explicit"], tags=("explicit_identifier", *(f"unique_token:{t}" for t in
-                                                                               sorted(unique_hits))),
-                     hard=True, auto=True)
+                     f"nazwa obiektu w {where}: {', '.join(sorted(unique_hits))} (unikalny token{scope}) - "
+                     f"{profile.name}", score=SCORES["explicit"], tags=tags, hard=True, auto=dated)
         else:
             opts.add([(profile.id, Fraction(1))], "B",
                      f"nazwa obiektu w {where} ({profile.name}), ale sprzeczność: {'; '.join(against)}",

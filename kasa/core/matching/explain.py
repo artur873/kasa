@@ -74,7 +74,8 @@ def explain(conn: psycopg.Connection, transaction_id: UUID) -> dict[str, Any]:
             """
             SELECT m.document_id, d.number_raw, m.internal_record_id, m.related_transaction_id, r.entry_reference,
                    m.amount_minor, m.document_amount_minor, m.difference_kind::text AS difference_kind,
-                   m.difference_minor, m.group_id, m.status::text AS status, m.method::text AS method
+                   m.difference_minor, m.group_id, m.status::text AS status, m.method::text AS method,
+                   m.evidence_only, m.evidence ->> 'label' AS label
               FROM l3_match m LEFT JOIN l1_document d ON d.id = m.document_id
               LEFT JOIN l1_bank_transaction r ON r.id = m.related_transaction_id
              WHERE m.transaction_id = %s ORDER BY m.created_at
@@ -172,7 +173,11 @@ def render(data: dict[str, Any]) -> str:
                    + (f", czeka do {s['awaiting_until']}" if s["awaiting_until"] else "") + f" ({s['method']})")
     for m in data["matches"]:
         target = m["number_raw"] or (f"przelew {m['entry_reference']}" if m["related_transaction_id"] else
-                                     f"wiersz {m['internal_record_id']}")
+                                     f"wiersz {m.get('label') or m['internal_record_id']}")
+        if m.get("evidence_only"):
+            out.append(f"   dowód [{m['status']}]: {target} - ten sam koszt co dokument grupy (bez kwoty) "
+                       f"grupa {str(m['group_id'])[:8]}")
+            continue
         out.append(f"   dopasowanie [{m['status']}]: {target} {money(m['amount_minor'])}"
                    + (f" [{m['difference_kind']} {money(m['difference_minor'])}]" if m["difference_kind"] else "")
                    + f" grupa {str(m['group_id'])[:8]}")

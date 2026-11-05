@@ -13,7 +13,7 @@ from kasa.core import control_sets as cs
 from kasa.core.checks import check_match_coverage
 from kasa.core.companies import Company, get_company
 from kasa.core.db import connect
-from kasa.core.matching.calibrate import calibrate
+from kasa.core.matching.calibrate import calibrate, latest_metrics, untrustworthy_warning
 from kasa.core.matching.engine import money
 from kasa.core.matching.explain import explain, find_transaction, render
 from kasa.core.matching.run import run_matching
@@ -124,6 +124,7 @@ def cmd_status(args: argparse.Namespace) -> int:
             (company.id, start, end),
         ).fetchone()
         coverage = check_match_coverage(conn, company.id, start, end, record=False)
+        warning = untrustworthy_warning(latest_metrics(conn, company.id))
         conn.rollback()
     decided = sum(r[3] for r in rows)
     print(f"Dopasowanie {company.slug}, {start} - {end}: zaksięgowanych przelewów {booked} "
@@ -135,6 +136,8 @@ def cmd_status(args: argparse.Namespace) -> int:
           f"średnia {queue[2]}, niska {queue[3]}")
     print(f"  bez decyzji i bez sugestii: {booked - decided - queue[0]}")
     print(f"  kontrola prawdy 2: {'zielona' if coverage.ok else 'CZERWONA'} - {coverage.summary()}")
+    if warning:
+        print(f"  {warning}")
     return 0
 
 

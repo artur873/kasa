@@ -90,6 +90,37 @@ def test_a_new_parser_version_supersedes_every_fact(conn, ingested, provider, mo
     assert sum(r.unchanged for r in ingest_company(conn, company, provider, *OCTOBER)) == 87
 
 
+def test_sensitive_from_the_counterparty_name_with_the_list_of_the_semantics_gate(conn, company):
+    """Review of 3/4B, point 13: the title AND the counterparty name, with the same list as the gate (database
+    terms included); the version of the parser is 3 (payer_hint, sensitive)."""
+    from kasa.core.sensitive import add_human_term
+
+    assert ingest_module.PARSER_SCHEMA_VERSION == 3
+    account = upsert_account(conn, company.id, AccountInfo(
+        uid="s", iban="PL65116022020000000555123456", currency="PLN", kind="current", provider="test",
+        bank_name="Bank Test"))
+    add_human_term(conn, company.id, "mediacja rodzinna", created_by="artur")      # not in the code lists
+    entries = [
+        BankEntry(source="test", account_iban=account.iban, locator="s1", entry_reference="S1", status="booked",
+                  booking_date=date(2026, 10, 5), amount_minor=-30000, currency="PLN",
+                  counterparty_name="Komornik Sadowy Jan Nowak", title_lines=["Przelew KM 12/26"]),
+        BankEntry(source="test", account_iban=account.iban, locator="s2", entry_reference="S2", status="booked",
+                  booking_date=date(2026, 10, 6), amount_minor=-20000, currency="PLN",
+                  counterparty_name="Gabinet Spokój sp. z o.o.", title_lines=["Mediacja rodzinna - sesja 3"]),
+        BankEntry(source="test", account_iban=account.iban, locator="s3", entry_reference="S3", status="booked",
+                  booking_date=date(2026, 10, 7), amount_minor=-10000, currency="PLN",
+                  counterparty_name="Drukarnia Format sp. z o.o.", title_lines=["FV 1/10/2026"]),
+    ]
+    store_entries(conn, company, account, entries, {}, IngestResult(account.iban, "test"))
+    flags = {ref: conn.execute("SELECT sensitive, extracted -> 'sensitive_words', schema_version "
+                               "FROM l1_bank_transaction WHERE entry_reference = %s AND account_id = %s",
+                               (ref, account.id)).fetchone() for ref in ("S1", "S2", "S3")}
+    assert flags["S1"][0] and "komornik" in flags["S1"][1]                 # only in the counterparty name
+    assert flags["S2"][0] and "mediacja rodzinna" in flags["S2"][1]        # a term of the database (a person's)
+    assert not flags["S3"][0] and flags["S3"][1] is None
+    assert {f[2] for f in flags.values()} == {3}
+
+
 def test_booked_operation_supersedes_its_card_hold(conn, company):
     account = upsert_account(conn, company.id, AccountInfo(
         uid="t", iban="PL65116022020000000555123456", currency="PLN", kind="current", provider="test",

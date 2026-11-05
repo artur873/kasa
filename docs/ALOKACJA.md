@@ -134,9 +134,11 @@ pierwszeństwa **dokument > rekord wewnętrzny > przelew**:
 
 * przelew spięty `l3_match` (4A) z dokumentem albo wierszem nie jest podmiotem - pieniądze idą za alokacją
   dokumentu (wiersza);
-* wiersz arkusza nie jest podmiotem ani kosztem, gdy jest dowodem dokumentu: ten sam przelew jest dopasowany do
-  obu (`l3_match`), albo - zanim cokolwiek dopasowano - wiersz wskazuje tę samą osobę (pseudonim) co rachunek
-  osoby, na tę samą kwotę, z datą w obrębie 31 dni (konferansjer: PDF EM-05 + wiersz R08 + przelew = 1 800 zł raz);
+* wiersz arkusza nie jest podmiotem ani kosztem, gdy jest dowodem dokumentu: decyzja dopasowania zapisała go w
+  grupie dokumentu jako `evidence_only` (0013, powód `evidence_only`, z `group_id`), ten sam przelew jest
+  dopasowany do obu (`l3_match`), albo - zanim cokolwiek dopasowano - wiersz wskazuje tę samą osobę (pseudonim)
+  co rachunek osoby, na tę samą kwotę, z datą w obrębie 31 dni (konferansjer: PDF EM-05 + wiersz R08 + przelew
+  = 1 800 zł raz); `evidence_of_documents(..., person_heuristic=False)` wyłącza tę ostatnią heurystykę;
 * przelew jest podmiotem tylko, gdy nie ma dokumentu: status końcowy `no_document` / `to_clarify` / `matched`
   wyłącznie z innym przelewem (zwrot ↔ duplikat), albo sugestia dopasowania 4A mówi „bez dokumentu”, albo - przed
   dopasowaniem - tytuł nie niesie numeru faktury i intencją nie jest zapłata faktury. Przelew własny nigdy.
@@ -146,7 +148,7 @@ pierwszeństwa **dokument > rekord wewnętrzny > przelew**:
 | Siła | Sygnał | Wynik na danych testowych | Automat? |
 | --- | --- | --- | --- |
 | A | jawne przypisanie w pliku wewnętrznym: `cost_object_ref` = nazwa/alias zatwierdzonego obiektu z unikalnym tokenem | 19 wierszy arkusza PM | **nie** (D2): odznaka wysoka, `hard: false`; flaga `allocation.internal_record_is_hard` w `extension.yaml` włącza automat |
-| A | jawny identyfikator: unikalny token nazwy obiektu (+ co najmniej dwa tokeny nazwy/miasta) w pozycji, tytule lub mailu, bez sprzeczności (daty z tekstu poza oknem > 3 dni, inny nabywca, inne miasto) | 21 pozycji faktur (np. „Catering - Gala ACME 2026”), tytuły BLIK „Nordis Gdansk hostessa 03.10” | **tak** (reguła `builtin:allocation_explicit_identifier`); przelew bezpośrednio - dopiero gdy dopasowanie (4A) dało mu status końcowy (bez dokumentu / do wyjaśnienia), wcześniej sugestia z tagiem `awaiting_matching` |
+| A | jawny identyfikator: unikalny token nazwy obiektu (+ co najmniej dwa tokeny nazwy/miasta) w pozycji, tytule lub mailu, bez sprzeczności (daty z tekstu poza oknem > 3 dni, inny nabywca, inne miasto); unikalność liczona wśród obiektów w oknie **±90 dni** wokół dat podmiotu (zeszłoroczna „Gala ACME” nie odbiera unikalności tegorocznej; przegląd 4B pkt 8) | 21 pozycji faktur (np. „Catering - Gala ACME 2026”), tytuły BLIK „Nordis Gdansk hostessa 03.10” | **tak** (reguła `builtin:allocation_explicit_identifier`); podmiot bez żadnej daty - sugestia z odznaką wysoką i tagiem `no_date`, nigdy automat; przelew bezpośrednio - dopiero gdy dopasowanie (4A) dało mu status końcowy (bez dokumentu / do wyjaśnienia), wcześniej sugestia z tagiem `awaiting_matching` |
 | A | reguła kontrahenta w etapie `auto` (4C, `kasa.core.rules.apply.applicable_rules`) | - | tak, podpisane tą regułą |
 | B | oferta ↔ faktura: kwota = oferta (proforma) jednego obiektu | - | sugestia |
 | B | kontrahent + okres usługi w oknie **jednego** obiektu (bez sprzecznego miasta; dla sprzedaży zgodny klient); dwa obiekty = remis w kolejce | hotel Kraków 08-10.10 → Gala, sala Wrocław 17.10 → Wrocław, paragon 24.10 → Łódź | sugestia |

@@ -83,7 +83,8 @@ def odm(gconn):
 def test_the_person_answered_the_queue_through_its_buttons(clicked, gconn, odm):
     _, log = clicked
     assert log.buttons["approve"] == 5                     # the five candidates, on their cards
-    assert log.cards["match"] == 35 and log.sentinels >= 2
+    # 39 match cards: 35 + 4 invoice numbers with a counterparty agreeing only by name (review of 4A, point 2)
+    assert log.cards["match"] == 39 and log.sentinels >= 2
     assert log.buttons["accept"] > 100                     # nearly every card: the first or another proposal
     # left in the queue: what the reference file does not decide (19 September documents of the JPK and the
     # 2 transfers "to clarify" - their allocation waits for the person's next step)
@@ -114,7 +115,7 @@ def test_a_zero_false_automatic_matches_and_allocations(gconn, odm):
         """,
         (odm.id,),
     ).fetchall()
-    assert len(autos) == 45
+    assert len(autos) == 41                 # 45 - 4 name-only counterparties (review of 4A, point 2)
     false = []
     for subject, payload in autos:
         label = labels[("transaction", subject)]
@@ -286,11 +287,11 @@ def test_e_rule_from_two_months_matures_through_observations_and_one_correction_
 def test_e_audit_draws_two_percent_min_twenty_of_the_automation(gconn, odm):
     automatic = gconn.execute("SELECT count(*) FROM l3_decision_log WHERE company_id = %s AND method = 'rule'",
                               (odm.id,)).fetchone()[0]
-    assert automatic == 66                                          # 45 matches + 21 allocations (signal A)
+    assert automatic == 62                                          # 41 matches + 21 allocations (signal A)
     report = audit.sample(gconn, odm, "2026-10", seed=11)
     # subjects of October (2 allocated lines are September's documents); 2% < 20 -> 20
     september = audit.population(gconn, odm.id, "2026-09")
-    assert report.population + len(september) == 66 and report.sample_size == 20
+    assert report.population + len(september) == 62 and report.sample_size == 20
     build.build(gconn, odm)
     cards = [i for i in actions.list_items(gconn, odm.id) if i["card_kind"] == "audit"]
     assert len(cards) == 20 and actions.card(gconn, cards[0]["id"])["label"] == "audyt"

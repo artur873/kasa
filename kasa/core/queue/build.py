@@ -134,6 +134,7 @@ def _overdue_receivable(conn: psycopg.Connection, proposals: list[dict]) -> tupl
 def _match_items(conn: psycopg.Connection, company_id: UUID) -> list[Item]:
     from kasa.core.decisions import batch_key
 
+    today = conn.execute("SELECT current_date").fetchone()[0]
     decided = {r[0] for r in conn.execute(
         "SELECT transaction_id FROM l3_transaction_status WHERE company_id = %s AND status = 'active'",
         (company_id,)).fetchall()}
@@ -147,6 +148,9 @@ def _match_items(conn: psycopg.Connection, company_id: UUID) -> list[Item]:
         amount = int(tx[0])
         top = proposals[0]
         evidence = top["evidence"] or {}
+        awaiting = (top["proposal"] or {}).get("awaiting_until")
+        if "awaiting_ksef" in (evidence.get("tags") or []) and awaiting and date.fromisoformat(awaiting) >= today:
+            continue            # the invoice named in the title is not in KSeF yet: the next run, not the queue
         badge = evidence.get("badge")
         status = (top["proposal"] or {}).get("final_status")
         tie = "tie" in (evidence.get("tags") or []) or (evidence.get("detail") or {}).get("tie")

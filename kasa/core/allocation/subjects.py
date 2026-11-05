@@ -79,20 +79,25 @@ def load_matches(conn: psycopg.Connection, company_id: UUID) -> MatchIndex:
         "AND column_name = 'related_transaction_id')"
     ).fetchone()[0]
     related = "related_transaction_id" if has_related else "NULL::uuid"
+    has_evidence = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'l3_match' "
+        "AND column_name = 'evidence_only')"
+    ).fetchone()[0]
+    evidence = "evidence_only" if has_evidence else "false"
     rows = conn.execute(
         f"""
-        SELECT transaction_id, document_id, internal_record_id, {related}, amount_minor, group_id, id
+        SELECT transaction_id, document_id, internal_record_id, {related}, amount_minor, group_id, id, {evidence}
           FROM l3_match WHERE company_id = %s AND status = 'active'
          ORDER BY transaction_id, created_at, id
         """,
         (company_id,),
     ).fetchall()
     index = MatchIndex()
-    for tx, doc, rec, rel, amount, group, mid in rows:
+    for tx, doc, rec, rel, amount, group, mid, proof in rows:
         doc = heads.get(doc, doc) if doc else None
         index.by_transaction.setdefault(tx, []).append(
             {"document_id": doc, "internal_record_id": rec, "related_transaction_id": rel,
-             "amount_minor": int(amount), "group_id": group, "id": mid})
+             "amount_minor": int(amount), "group_id": group, "id": mid, "evidence_only": bool(proof)})
         if doc:
             index.transactions_of_document.setdefault(doc, set()).add(tx)
         if rec:
@@ -101,15 +106,32 @@ def load_matches(conn: psycopg.Connection, company_id: UUID) -> MatchIndex:
 
 
 def evidence_of_documents(records: dict[UUID, InternalRecordFacts], documents: dict[UUID, DocumentFacts],
-                          matches: MatchIndex) -> dict[UUID, dict[str, Any]]:
-    """Internal rows that are evidence of a document (the document is the cost). record id -> link."""
+                          matches: MatchIndex, *, person_heuristic: bool = True) -> dict[UUID, dict[str, Any]]:
+    """Internal rows that are evidence of a document (the document is the cost). record id -> link.
+
+    In order: a row ``evidence_only`` of a match group (0013: the decision of matching says "the same
+    cost", reason ``evidence_only``, the document of the same ``group_id``); a row matched to the same
+    transfer as a document (``l3_match``); before any match - the same person, amount and date as a bill of
+    a person (``same_person_amount_date``, ``person_heuristic=False`` switches this guess off).
+    """
     covered: dict[UUID, dict[str, Any]] = {}
+    for tx, items in matches.by_transaction.items():
+        for item in items:
+            rec = item["internal_record_id"]
+            if not (rec and item.get("evidence_only") and rec in records):
+                continue
+            docs = [i["document_id"] for i in items if i["document_id"] and i["group_id"] == item["group_id"]]
+            if docs:
+                covered[rec] = {"document_id": docs[0], "reason": "evidence_only", "transaction_id": tx,
+                                "group_id": item["group_id"]}
     for tx, items in matches.by_transaction.items():
         docs = [i["document_id"] for i in items if i["document_id"]]
         for item in items:
             rec = item["internal_record_id"]
-            if rec and docs and rec in records:
+            if rec and docs and rec in records and rec not in covered:
                 covered[rec] = {"document_id": docs[0], "reason": "l3_match", "transaction_id": tx}
+    if not person_heuristic:
+        return covered
     by_person: dict[str, list[DocumentFacts]] = defaultdict(list)
     for doc in documents.values():
         if doc.direction == "purchase" and doc.counterparty_kind == "person" and doc.counterparty_pseudonym:

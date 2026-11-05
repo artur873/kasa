@@ -11,7 +11,7 @@ system object of the company.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -146,11 +146,41 @@ def unassigned(profiles: dict[UUID, ObjectProfile]) -> ObjectProfile:
     raise LookupError("Firma nie ma obiektu UNASSIGNED")
 
 
+UNIQUE_WINDOW_DAYS = 90
+
+
+def _near(profile: ObjectProfile, around: tuple[date, date], days: int) -> bool:
+    """The object's window is within ``days`` of the subject's dates (an object without dates always counts)."""
+    if profile.window is None:
+        return True
+    start, end = around
+    return profile.window[1] >= start - timedelta(days=days) and profile.window[0] <= end + timedelta(days=days)
+
+
+def unique_tokens_around(profile: ObjectProfile, profiles: dict[UUID, ObjectProfile], around: tuple[date, date],
+                         days: int = UNIQUE_WINDOW_DAYS) -> frozenset[str]:
+    """Tokens of the object that no OTHER known object within ±``days`` of the subject's dates has.
+
+    "Gala ACME" of last year does not take the uniqueness of this year's "Gala ACME" away from an invoice
+    of this year - and two objects of the same season never share a unique token (review of 4B, point 8).
+    """
+    others: set[str] = set()
+    for other in profiles.values():
+        if other.id == profile.id or other.system_code or other.status not in ("approved", "candidate"):
+            continue
+        if _near(other, around, days):
+            others |= set(other.identity_tokens)
+    return frozenset(profile.identity_tokens - others - profile.client_tokens)
+
+
 def named_objects(tokens: frozenset[str], profiles: dict[UUID, ObjectProfile], *,
-                  targets_only: bool = True) -> list[tuple[ObjectProfile, frozenset[str], frozenset[str]]]:
+                  targets_only: bool = True, around: tuple[date, date] | None = None,
+                  days: int = UNIQUE_WINDOW_DAYS) -> list[tuple[ObjectProfile, frozenset[str], frozenset[str]]]:
     """Objects a text names: a unique token of the object and at least two tokens of its name/city.
 
-    Returns (profile, hits, unique hits); a text naming several objects lists them all.
+    ``around`` = the dates of the subject: the uniqueness of a token is counted among the objects within
+    ±``days`` of them; without dates - among all known objects. Returns (profile, hits, unique hits); a
+    text naming several objects lists them all.
     """
     out = []
     for profile in profiles.values():
@@ -159,7 +189,8 @@ def named_objects(tokens: frozenset[str], profiles: dict[UUID, ObjectProfile], *
         if targets_only and not profile.is_target:
             continue
         hits = tokens & profile.identity_tokens
-        unique_hits = tokens & profile.unique_tokens
+        unique = unique_tokens_around(profile, profiles, around, days) if around else profile.unique_tokens
+        unique_hits = tokens & unique
         if unique_hits and len(hits) >= 2:
             out.append((profile, frozenset(hits), frozenset(unique_hits)))
     return out

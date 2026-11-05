@@ -92,6 +92,28 @@ def test_sensitive_title_bypasses_the_model_and_goes_to_the_queue(conn, odm):
     assert conn.execute("SELECT count(*) FROM l2_suggestion WHERE subject_id = %s", (tx_id,)).fetchone() == (1,)
 
 
+def test_the_block_of_the_gate_is_a_lasting_flag_never_retried(conn, odm):
+    """Review of 3/4B, point 13: a word the ingestion did not know (a person added it later) is found by the
+    gate once; the flag (a category card) stays - later passes neither call nor log a blocked attempt - and
+    matching treats the transfer as sensitive."""
+    from kasa.core.matching.data import load_context
+    from kasa.core.sensitive import add_human_term
+
+    tx_id = _tx(conn, odm.id, "Mediacja rodzinna - sesja 4")
+    add_human_term(conn, odm.id, "mediacja rodzinna", created_by="artur")
+    llm = RecordingLlm()
+    run_semantics(conn, odm, "transactions", provider=llm)
+    blocked = [c for c in _calls(conn, odm.id) if c[1] == "sensitive"]
+    assert llm.prompts == [] and len(blocked) == 1
+    for _ in range(2):
+        report = run_semantics(conn, odm, "transactions", provider=llm)
+        assert report.blocked == {} or not report.blocked.get("sensitive")
+    assert len([c for c in _calls(conn, odm.id) if c[1] == "sensitive"]) == 1       # not retried
+    assert conn.execute("SELECT count(*) FROM l2_suggestion WHERE subject_id = %s", (tx_id,)).fetchone() == (1,)
+    tx = load_context(conn, odm.id).txs[tx_id]
+    assert tx.sensitive and tx.intent is None and tx.semantics is None
+
+
 def test_rows_flagged_sensitive_are_never_read(conn, odm):
     # the flag (set at ingestion, or by a person) is enough - the title is not even looked at
     tx_id = _tx(conn, odm.id, "Zaplata za FV 99/10/2026 - zupelnie zwykly tytul", sensitive=True)

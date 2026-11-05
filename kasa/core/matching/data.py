@@ -261,6 +261,7 @@ class MatchContext:
     rates: RateCache
     precedents: dict[UUID, int]                 # counterparty id -> decided transactions
     rejected: dict[UUID, set[str]] = field(default_factory=dict)   # transaction -> rejected proposals
+    today: date = field(default_factory=date.today)                # the day of the run (waiting for KSeF)
     by_number: dict[str, list[Doc]] = field(default_factory=dict)
     by_ksef: dict[str, Doc] = field(default_factory=dict)
     mpp_legs: dict[UUID, list[Tx]] = field(default_factory=dict)
@@ -289,8 +290,35 @@ def _counterparties(conn: psycopg.Connection, company_id: UUID) -> dict[UUID, Co
     return out
 
 
+def _sensitive_flags(conn: psycopg.Connection, company_id: UUID) -> tuple[set[UUID], set[UUID]]:
+    """(transfers flagged sensitive by the semantics gate, transfers a person declared not sensitive).
+
+    The gate's flag (``flag_sensitive``: a category card "a person must categorize this") is permanent: it
+    is never retried (``semantics.store.flagged_subjects``) and matching treats the transfer as sensitive
+    too, even when ingestion did not see the word (a term added later). "To nie jest wrażliwe" of a person
+    (``sensitive_exception``) lifts both.
+    """
+    flagged = {r[0] for r in conn.execute(
+        """
+        SELECT DISTINCT subject_id FROM l2_suggestion
+         WHERE company_id = %s AND kind = 'category' AND subject_type = 'transaction'
+           AND proposal @> '{"needs_human": true, "reason": "sensitive"}'::jsonb
+        """,
+        (company_id,),
+    ).fetchall()}
+    excepted: set[UUID] = set()
+    if conn.execute("SELECT to_regclass('sensitive_exception') IS NOT NULL").fetchone()[0]:
+        excepted = {r[0] for r in conn.execute(
+            "SELECT DISTINCT subject_id FROM sensitive_exception "
+            "WHERE company_id = %s AND subject_type = 'transaction'",
+            (company_id,),
+        ).fetchall()}
+    return flagged, excepted
+
+
 def _transactions(conn: psycopg.Connection, company_id: UUID,
                   counterparties: dict[UUID, Counterparty]) -> dict[UUID, Tx]:
+    flagged, excepted = _sensitive_flags(conn, company_id)
     with conn.cursor(row_factory=dict_row) as cur:
         rows = cur.execute(
             """
@@ -312,6 +340,7 @@ def _transactions(conn: psycopg.Connection, company_id: UUID,
         if r["intent"] is not None or r["entities"]:
             semantics = {"intent": r["intent"], "entities": r["entities"] or {}, "summary": r["summary"],
                          "model": r["model"]}
+        sensitive = (bool(r["sensitive"]) or r["id"] in flagged) and r["id"] not in excepted
         tx = Tx(
             id=r["id"], account_id=r["account_id"], account_kind=r["account_kind"],
             entry_reference=r["entry_reference"], booking_date=r["booking_date"],
@@ -321,10 +350,10 @@ def _transactions(conn: psycopg.Connection, company_id: UUID,
             counterparty_id=r["counterparty_id"], counterparty_name=r["counterparty_name_raw"],
             counterparty_iban=_iban(r["counterparty_iban_raw"]), counterparty_pseudonym=r["counterparty_pseudonym"],
             title=r["title"], extracted=r["extracted"] or {}, op_type=r["op_type"], mpp_group_id=r["mpp_group_id"],
-            mpp_role=r["mpp_role"], sensitive=bool(r["sensitive"]),
+            mpp_role=r["mpp_role"], sensitive=sensitive,
             cp=counterparties.get(r["counterparty_id"]) if r["counterparty_id"] else None,
             # a sensitive title is never read by a model; its semantics are not used either
-            intent=None if r["sensitive"] else r["intent"], semantics=None if r["sensitive"] else semantics,
+            intent=None if sensitive else r["intent"], semantics=None if sensitive else semantics,
         )
         out[tx.id] = tx
     return out
@@ -409,9 +438,11 @@ def _records(conn: psycopg.Connection, company_id: UUID, exclude_matches_of: set
         ).fetchall():
             for record_id in wanted[digest]:
                 records[record_id].phones.add(pseudonym)
-    for record_id, matched in conn.execute(
-        """
-        SELECT internal_record_id, sum(coalesce(document_amount_minor, amount_minor)) FROM l3_match
+    evidence = "evidence_only" if _has_evidence_only(conn) else "false"
+    for record_id, matched, proof in conn.execute(
+        f"""
+        SELECT internal_record_id, sum(coalesce(document_amount_minor, amount_minor)), bool_or({evidence})
+          FROM l3_match
          WHERE company_id = %s AND status = 'active' AND internal_record_id IS NOT NULL
            AND NOT (transaction_id = ANY(%s))
          GROUP BY internal_record_id
@@ -419,8 +450,16 @@ def _records(conn: psycopg.Connection, company_id: UUID, exclude_matches_of: set
         (company_id, list(exclude_matches_of)),
     ).fetchall():
         if record_id in records:
-            records[record_id].matched_minor = int(matched)
+            # a row that is evidence of a document (one cost, many proofs) is settled by that document
+            records[record_id].matched_minor = (records[record_id].amount_minor or 0) if proof else int(matched)
     return records
+
+
+def _has_evidence_only(conn: psycopg.Connection) -> bool:
+    return bool(conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'l3_match' "
+        "AND column_name = 'evidence_only')"
+    ).fetchone()[0])
 
 
 def builtin_rules(conn: psycopg.Connection, company_id: UUID) -> dict[str, dict[str, Any]]:

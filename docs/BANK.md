@@ -88,8 +88,9 @@ kolejności księgowania, a bez salda otwarcia - wstecz od salda zamknięcia, i 
 
 **Idempotencja i wersje.** Ten sam zakres pobrany ponownie: te same bajty → ten sam `l0_raw`; ta sama
 operacja (po `entry_reference`, a bez niego po `fingerprint`) → bez zmian. Podbicie
-`kasa.core.bank.ingest.PARSER_SCHEMA_VERSION` (zmiana parsera lub ekstrakcji; obecnie 2 - telefony w
-`extracted` tylko jako pseudonimy) → przy następnym pobraniu każda
+`kasa.core.bank.ingest.PARSER_SCHEMA_VERSION` (zmiana parsera lub ekstrakcji; 2 - telefony w
+`extracted` tylko jako pseudonimy; obecnie 3 - `payer_hint` i `sensitive` z tytułu oraz nazwy kontrahenta listą
+bramki semantyki) → przy następnym pobraniu każda
 operacja dostaje nowy wiersz z nowym `schema_version`, a stary wskazuje go przez `superseded_by`. Te same
 operacje z EB i z camt.053 (ten sam `NtryRef`) to jeden fakt.
 
@@ -131,6 +132,7 @@ okres wyciągu. Rachunek nieznany bazie dostaje rodzaj `current` (albo `--kind v
 | `card`, `original_amount` | `5375********4417`; `Kwota oryg. 99,00 EUR, kurs 4,4154` |
 | `phones` | `+48 500 085 853` → w faktach tylko pseudonim `T-…` (od wersji parsera 2; jawny numer zostaje wyłącznie w `title_raw`) |
 | `operator` | Revolut, PayU, Stripe, PayPal, Przelewy24, Tpay, Wise, Adyen (z nadawcy albo tytułu) z referencją, gdy jest |
+| `payer_hint` | przy operatorze Revolut / PayU / Stripe: firma z formą prawną z tytułu (`{"name": "KWADRAT DEVELOPMENT SP. Z O.O.", "legal_form": "SP. Z O.O."}`) - płatnik za operatorem; osoba (bez formy prawnej) nigdy tu nie trafia (od wersji parsera 3, `EXTRACTOR_VERSION` 2) |
 | `persons`, `sensitive_words`, `fx`, `op_type_reason` | pseudonimy osób z tytułu, znalezione słowa wrażliwe, kursy, uzasadnienie typu |
 
 Okresy („09/2026”), umowy, sygnatury i daty nie trafiają do numerów faktur.
@@ -202,9 +204,13 @@ zwraca tekst z kodami i listę trafień (`PseudonymHit`: rodzaj, pozycja, warto�
 * **Słowa wrażliwe:** lista rdzenia (`zdrowie`, `związki`, `komornik`, `alimenty`) + lista rozszerzenia firmy
   + uzupełnienie rdzenia (`zajęcie wynagrodzenia`, `egzekucja`, `dłużnik`, `choroba`, `leczenie`…), od fazy 3
   w tabeli `sensitive_term` i w `kasa.core.sensitive` (stemmer z odmianą polską, `docs/SEMANTYKA.md`),
-  dopasowanie po rdzeniu słowa, nie po podciągu („komornicze”, „alimentów”, „związkowej”). Trafienie ustawia
-  `sensitive = true` i zapisuje słowa w `extracted.sensitive_words`: taki przelew omija model (semantyka nie
-  czyta nawet jego tytułu) i idzie do kolejki.
+  dopasowanie po rdzeniu słowa, nie po podciągu („komornicze”, „alimentów”, „związkowej”). Trafienie w tytule
+  **albo w nazwie kontrahenta** (ta sama lista co bramka semantyki: rdzeń + rozszerzenie + słowa z bazy, także
+  dodane przez człowieka; od wersji parsera 3) ustawia `sensitive = true` i zapisuje słowa w
+  `extracted.sensitive_words`: taki przelew omija model (semantyka nie czyta nawet jego tytułu) i idzie do
+  kolejki. Blokada bramki (słowo dodane później) jest trwałą flagą: karta „kategorię nadaje człowiek” nie jest
+  ponawiana przy kolejnych przebiegach, a dopasowanie traktuje taki przelew jak wrażliwy (bez twardego dowodu),
+  dopóki człowiek nie powie „to nie jest wrażliwe”.
 
 ## 7. Retencja (`kasa/core/retention.py`, Krok 9, D6)
 

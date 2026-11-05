@@ -12,8 +12,9 @@ def test_queue_has_every_kind_of_open_work_ordered_by_what_blocks_the_metrics(qc
     kinds = {}
     for item in items:
         kinds[item["card_kind"]] = kinds.get(item["card_kind"], 0) + 1
-    # 35 transfers for a person (4A), 5 cost object candidates (4B), allocation proposals, 1 sensitive title
-    assert kinds["match"] == 35 and kinds["cost_object_candidate"] == 5 and kinds["sensitive"] == 1
+    # 39 transfers for a person (4A; 4 of them an invoice number with a counterparty agreeing only by name),
+    # 5 cost object candidates (4B), allocation proposals, 1 sensitive title
+    assert kinds["match"] == 39 and kinds["cost_object_candidate"] == 5 and kinds["sensitive"] == 1
     assert kinds["allocation"] > 50 and kinds["sentinel"] >= 1
     ordered = [i for i in items if i["card_kind"] != "sentinel"]
     # candidates block the allocations -> first; then the largest outflows without a document

@@ -44,7 +44,7 @@ from kasa.core.matching import weights as W
 from kasa.core.matching.data import Doc, MatchContext, Tx, load_context, name_tokens
 from kasa.core.matching.fx import convert_minor
 from kasa.core.normalize import from_minor
-from kasa.core.pseudonym import fold
+from kasa.core.pseudonym import fold, is_capital_company
 
 ENGINE_VERSION = 1
 SOURCE = "kasa.matching"
@@ -154,7 +154,8 @@ class Candidate:
         return self.kind in MATCH_KINDS
 
     def key(self) -> tuple:
-        return (self.final_status, self.subtype, tuple(sorted((i.target[0], str(i.target[1])) for i in self.items)))
+        return (self.final_status, self.subtype, self.awaiting_until,
+                tuple(sorted((i.target[0], str(i.target[1])) for i in self.items)))
 
     def proposal(self) -> dict[str, Any]:
         return {
@@ -188,6 +189,7 @@ class Evaluation:
     ctx: MatchContext
     results: list[TxResult]
     params: dict[str, float]
+    reserved: set[UUID] = field(default_factory=set)   # transactions whose rank 1 claimed its targets
 
 
 # ---------------------------------------------------------------------------
@@ -225,13 +227,25 @@ def _days(delta: int) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _tx_nips(ctx: MatchContext, tx: Tx) -> set[str]:
-    out = set()
-    if tx.cp and tx.cp.nip:
-        out.add(tx.cp.nip)
+def _mpp_nip(ctx: MatchContext, tx: Tx) -> str | None:
     mpp = tx.extracted.get("mpp") or {}
-    if mpp.get("idc_nip") and mpp["idc_nip"] != ctx.own_nip:
-        out.add(mpp["idc_nip"])
+    nip = mpp.get("idc_nip")
+    return nip if nip and nip != ctx.own_nip else None
+
+
+def _tx_tied(tx: Tx) -> bool:
+    """The transfer reached its counterparty by the IBAN of the bank data, not by the bank's name only."""
+    return bool(tx.cp and tx.counterparty_iban and tx.counterparty_iban in tx.cp.ibans)
+
+
+def _tx_nips(ctx: MatchContext, tx: Tx, *, tied_only: bool = False) -> set[str]:
+    """NIPs of the payer/payee: of the MPP block, and of its counterparty (``tied_only``: only one reached by IBAN)."""
+    out = set()
+    if tx.cp and tx.cp.nip and (not tied_only or _tx_tied(tx)):
+        out.add(tx.cp.nip)
+    mpp = _mpp_nip(ctx, tx)
+    if mpp:
+        out.add(mpp)
     return out
 
 
@@ -239,26 +253,58 @@ def _tokens_in_title(tx: Tx) -> set[str]:
     return set(name_tokens(tx.title))
 
 
+def title_has_legal_form(tx: Tx) -> bool:
+    """A company with its legal form is written in the title ("KWADRAT DEVELOPMENT SP. Z O.O." via Revolut)."""
+    return bool(tx.extracted.get("payer_hint")) or is_capital_company(tx.title)
+
+
+def _same_counterparty_basis(ctx: MatchContext, tx: Tx, doc: Doc) -> str | None:
+    """The transfer and the document point at one counterparty: by which identifier, on BOTH sides?
+
+    ``kasa_upsert_counterparty`` joins a party without NIP and IBAN by its name (a card merchant, a PDF
+    without a NIP); such a tie is the same name, not hard evidence (review of 4A, point 2). Strong only
+    when the transfer reached the counterparty by IBAN (or the NIP of its MPP block) and the document by
+    its NIP / tax id or by the same IBAN.
+    """
+    cp = tx.cp
+    if not (_tx_tied(tx) or (cp.nip and _mpp_nip(ctx, tx) == cp.nip)):
+        return None
+    if cp.nip and doc.party_nip == cp.nip:
+        return "NIP"
+    if cp.foreign_tax_id:
+        return "numer podatkowy"
+    if doc.payment_iban and doc.payment_iban not in ctx.own_ibans and doc.payment_iban == tx.counterparty_iban:
+        return "IBAN"
+    return None
+
+
 def link(ctx: MatchContext, tx: Tx, doc: Doc) -> tuple[str, str]:
     """(strength, fact) of the tie between the payer/payee of a transfer and the party of a document.
 
-    id / nip / iban = strong (briefing: "nadawca po IBAN/NIP przypisany do kontrahenta"); name = the
-    same name without legal forms; similar / title_name = weak; conflict = different NIPs.
+    id / nip / iban = strong (briefing: "nadawca po IBAN/NIP przypisany do kontrahenta"), only through an
+    identifier; name = the same name without legal forms (a point signal, never hard evidence); similar /
+    title_name = weak; conflict = different NIPs.
     """
-    if tx.cp and doc.cp and tx.cp.id == doc.cp.id and tx.cp.kind != "own":
-        basis = "NIP" if tx.cp.nip else "IBAN" if tx.cp.ibans else "nazwa"
-        return "id", f"kontrahent rozpoznany ({basis}): {doc.cp.name or doc.party_name}"
+    same = bool(tx.cp and doc.cp and tx.cp.id == doc.cp.id and tx.cp.kind != "own")
+    if same:
+        basis = _same_counterparty_basis(ctx, tx, doc)
+        if basis:
+            return "id", f"kontrahent rozpoznany ({basis}): {doc.cp.name or doc.party_name}"
+        # the same counterparty only through the bank's name: its NIP / IBANs are not identifiers of
+        # this transfer; only what the document itself says (its IBAN) and the names count below
     doc_nip = doc.party_nip or (doc.cp.nip if doc.cp else None)
     tx_nips = _tx_nips(ctx, tx)
     if doc_nip and tx_nips:
-        if doc_nip in tx_nips:
+        if doc_nip in _tx_nips(ctx, tx, tied_only=True):
             return "nip", f"NIP kontrahenta zgodny ({doc_nip})"
-        return "conflict", f"inny NIP: przelew {', '.join(sorted(tx_nips))}, dokument {doc_nip}"
+        if doc_nip not in tx_nips:
+            return "conflict", f"inny NIP: przelew {', '.join(sorted(tx_nips))}, dokument {doc_nip}"
+        # the same NIP only through a counterparty joined by name: not an identifier of the transfer
     doc_ftid = doc.cp.foreign_tax_id if doc.cp else None
-    if doc_ftid and tx.cp and tx.cp.foreign_tax_id == doc_ftid:
+    if doc_ftid and tx.cp and tx.cp.foreign_tax_id == doc_ftid and _tx_tied(tx):
         return "nip", f"numer podatkowy kontrahenta zgodny ({doc_ftid})"
     if tx.counterparty_iban and tx.counterparty_iban not in ctx.own_ibans:
-        doc_ibans = set(doc.cp.ibans if doc.cp else ())
+        doc_ibans = set(doc.cp.ibans if doc.cp and not same else ())
         if doc.payment_iban and doc.payment_iban not in ctx.own_ibans:
             doc_ibans.add(doc.payment_iban)
         if tx.counterparty_iban in doc_ibans:
@@ -273,6 +319,9 @@ def link(ctx: MatchContext, tx: Tx, doc: Doc) -> tuple[str, str]:
         if common and not (tx.cp and tx.cp.kind == "bank"):
             return "similar", f"podobna nazwa kontrahenta: {tx_name} / {doc_name}"
     if b and b <= _tokens_in_title(tx) and any(len(t) >= 4 for t in b):
+        if title_has_legal_form(tx):
+            hint = (tx.extracted.get("payer_hint") or {}).get("name")
+            return "title_name", f"nazwa kontrahenta z formą prawną w tytule: {hint or doc_name}"
         return "title_name", f"nazwa kontrahenta w tytule: {doc_name}"
     if a and b:
         return "different", f"inna nazwa kontrahenta: {tx_name} / {doc_name}"
@@ -392,11 +441,22 @@ def settle_single(ctx: MatchContext, tx: Tx, doc: Doc, amount_abs: int) -> Settl
     diff_pln = amount_abs - open_pln if tx.currency == "PLN" else 0
     item = Item(document_id=doc.id, amount_minor=amount_abs, document_amount_minor=open_total, currency=doc.currency,
                 label=doc.number_raw)
+    # earlier installments already settled part of the invoice: the installment that closes the rest
+    # within the FX tolerance takes the rest of the balance with the named difference "kurs" (review 4A, point 7)
+    installments = doc.chain_open_minor != doc.chain_gross_minor and 0 < open_total
+    closes_rest = (installments and tx.currency == "PLN" and open_pln > 0
+                   and abs(diff_pln) <= tolerance_minor(open_pln, foreign=True))
     if original is not None:
         cdiff = original - open_total
         if cdiff == 0:
             signals.append(("amount_exact", f"kwota w {doc.currency} co do grosza ({money(open_total, doc.currency)})"))
             relation = "exact_currency"
+        elif closes_rest and abs(cdiff) <= tolerance_minor(open_total, foreign=True):
+            item.difference_kind, item.difference_minor = ("fx", diff_pln) if diff_pln else (None, None)
+            signals.append(("amount_fx_tolerance", (
+                f"ostatnia rata zamyka resztę faktury {money(open_total, doc.currency)} (przelew "
+                f"{money(original, doc.currency)}): różnica „kurs” {money(diff_pln)} na resztę salda ({rate_fact})")))
+            return Settlement([item], "fx", signals)
         elif abs(cdiff) <= tolerance_minor(open_total, foreign=True) and cdiff < 0:
             signals.append(("amount_fx_tolerance", f"brakuje {money(-cdiff, doc.currency)} - prowizja banku"))
             item.difference_kind = "fee"
@@ -422,10 +482,20 @@ def settle_single(ctx: MatchContext, tx: Tx, doc: Doc, amount_abs: int) -> Settl
         return None                     # a domestic PLN transfer is never compared with a foreign invoice
     if abs(diff_pln) <= tolerance_minor(open_pln, foreign=True):
         item.difference_kind, item.difference_minor = ("fx", diff_pln) if diff_pln else (None, None)
-        signals.append(("amount_fx_tolerance", (f"różnica „kurs” {money(diff_pln)}: {money(amount_abs)} wobec "
+        what = (f"ostatnia rata zamyka resztę faktury {money(open_total, doc.currency)}: " if installments else "")
+        signals.append(("amount_fx_tolerance", (f"{what}różnica „kurs” {money(diff_pln)}: {money(amount_abs)} wobec "
                                                 f"{money(open_total, doc.currency)} = {money(open_pln)} "
                                                 f"({rate_fact}); tolerancja 1,5% albo 50 zł")))
         return Settlement([item], "fx", signals)
+    if tx.currency == "PLN" and 0 < amount_abs < open_pln:
+        # an installment in PLN without the amount in the invoice currency: its part of the invoice at the
+        # invoice's rate, so that the installments add up to the invoice in its currency
+        paid = min(open_total - 1, max(1, round(amount_abs * open_total / open_pln)))
+        item.document_amount_minor = paid
+        item.difference_kind, item.difference_minor = "underpayment", diff_pln
+        signals.append(("underpayment", (f"rata: {money(amount_abs)} = {money(paid, doc.currency)} z "
+                                         f"{money(open_total, doc.currency)} ({rate_fact}) - częściowa zapłata")))
+        return Settlement([item], "underpayment", signals)
     return None
 
 
@@ -489,7 +559,9 @@ def _doc_candidate(ctx: MatchContext, tx: Tx, docs: list[Doc], amount_abs: int, 
     links = [link(ctx, tx, d) for d in docs]
     weakest = min(links, key=lambda x: LINK_RANK[x[0]])
     if weakest[0] in LINK_SIGNAL:
-        cand.add(LINK_SIGNAL[weakest[0]], weakest[1])
+        # a company with its legal form in the title (Revolut, PayU, Stripe) counts as much as the same name
+        weight = W.WEIGHTS["counterparty_name"] if weakest[0] == "title_name" and title_has_legal_form(tx) else None
+        cand.add(LINK_SIGNAL[weakest[0]], weakest[1], weight)
     for tag, fact in settlement.signals:
         cand.add(tag, fact)
     inside = [_window(tx, d) for d in docs]
@@ -503,13 +575,19 @@ def _doc_candidate(ctx: MatchContext, tx: Tx, docs: list[Doc], amount_abs: int, 
     if any(d.kind == "advance" for d in docs) and (tx.intent == "advance" or ADVANCE_WORDS.search(tx.title_folded)):
         cand.add("advance_invoice", "zaliczka i faktura zaliczkowa")
     exact = settlement.relation in ("exact", "exact_currency")
-    agree = all(lk[0] in AGREEING_LINKS for lk in links)
+    # hard evidence from an invoice number only with a counterparty agreeing by NIP / IBAN (STRONG_LINKS);
+    # the same name is a point signal (review of 4A, point 2) - until a person's match links the IBAN
+    strong = all(lk[0] in STRONG_LINKS for lk in links)
     if origin == "ksef_number" and exact:
         cand.hard, cand.rule_key = True, "builtin:match_ksef_number"
     elif origin == "mpp_block" and exact:
         cand.hard, cand.rule_key = True, "builtin:match_mpp_block"
-    elif origin == "invoice_number" and exact and agree:
+    elif origin == "invoice_number" and exact and strong:
         cand.hard, cand.rule_key = True, "builtin:match_invoice_number_same_counterparty"
+    elif origin == "invoice_number" and exact and all(lk[0] in AGREEING_LINKS for lk in links):
+        cand.add("counterparty_name_only", "kontrahent zgodny tylko po nazwie - numer faktury nie jest twardym "
+                                           "dowodem bez NIP albo IBAN (pierwsza Twoja decyzja połączy IBAN)",
+                 weight=0.0)
     cand.precedents = ctx.precedents.get(tx.counterparty_id, 0) if tx.counterparty_id else 0
     return cand
 
@@ -620,6 +698,42 @@ def _hard_identifier_layer(ctx: MatchContext, tx: Tx, amount_abs: int) -> tuple[
                     cand.blockers.append("nie wszystkie numery z tytułu znalezione")
                 candidates.append(cand)
     return candidates, named
+
+
+AWAITING_PATTERNS = ("keyword", "structured", "mpp")
+
+
+def _missing_numbers(ctx: MatchContext, tx: Tx) -> list[str]:
+    """Invoice numbers of the title (a correct pattern, read by code) that no document of the company has (yet)."""
+    out = []
+    for number in _numbers_in_title(tx):
+        if number["pattern"] not in AWAITING_PATTERNS:
+            continue
+        if not any(ctx.by_number.get(form) for form in number["forms"]):
+            out.append(number["raw"] or number["forms"][0])
+    return out
+
+
+def _awaiting_ksef(ctx: MatchContext, tx: Tx, candidates: list[Candidate]) -> list[Candidate]:
+    """The title names an invoice that is not in the data yet (not in KSeF): wait one day, not the queue.
+
+    The suggestion waits until the day after the booking (``awaiting_until``, tag ``awaiting_ksef``); the
+    queue does not show it until then. When the invoice arrives, the next run proposes it as usual; after
+    that day without the invoice the transfer goes to the queue with what the other layers found.
+    """
+    if any(c.hard for c in candidates):
+        return []
+    missing = _missing_numbers(ctx, tx)
+    if not missing:
+        return []
+    until = tx.booking_date + timedelta(days=W.KSEF_AWAIT_DAYS)
+    if until < ctx.today:
+        return []                       # waited already: the queue, with what the other layers found
+    cand = Candidate("to_clarify", final_status="to_clarify", awaiting_until=until)
+    cand.add("awaiting_ksef", f"numer {', '.join(missing)} z tytułu nie ma jeszcze w danych (KSeF) - czekamy na "
+                              f"fakturę do {until.isoformat()}, potem kolejka")
+    cand.blockers.append("czeka na fakturę z KSeF")
+    return [cand]
 
 
 def _subsets(docs: list[Doc], target: int) -> list[list[Doc]]:
@@ -1062,6 +1176,10 @@ def rank(candidates: list[Candidate], params: dict[str, float]) -> list[Candidat
         clarify.compute(params)
         clarify.score, clarify.raw, clarify.tie = a.score, a.raw, True
         ordered = [clarify, a, b] + [c for c in ordered if c is not a and c is not b and c.kind != "to_clarify"]
+    waiting = [c for c in ordered if c.has("awaiting_ksef")]
+    if waiting:
+        # the invoice named in the title is not in KSeF yet: waiting for it is the first proposal
+        ordered = waiting[:1] + [c for c in ordered if c is not waiting[0]]
     top = ordered[: W.MAX_SUGGESTIONS]
     for index, cand in enumerate(top):
         nxt = top[index + 1].score if index + 1 < len(top) else 0.0
@@ -1086,7 +1204,7 @@ def _describe(cand: Candidate) -> str:
 
 
 def _reserve(ctx: MatchContext, cand: Candidate) -> None:
-    """A hard rank-1 candidate claims its targets for the rest of the run (chronological order)."""
+    """A rank-1 candidate the automation will close claims its targets for the rest of the run (chronological)."""
     for item in cand.items:
         side = item.document_amount_minor if item.document_amount_minor is not None else item.amount_minor
         if item.document_id and item.document_id in ctx.docs:
@@ -1147,6 +1265,7 @@ def candidates_for(conn: psycopg.Connection, ctx: MatchContext, tx: Tx) -> tuple
         _semantics(tx, candidates)
         _learned_rules(conn, ctx, tx, candidates)
         candidates = _merge_linked_evidence(candidates)
+        candidates += _awaiting_ksef(ctx, tx, candidates)
         candidates += _fallbacks(ctx, tx, candidates)
     for cand in candidates:
         if tx.sensitive and cand.hard:
@@ -1183,23 +1302,37 @@ def load_params(conn: psycopg.Connection, company_id: UUID) -> dict[str, float]:
 
 def evaluate(conn: psycopg.Connection, company_id: UUID, *, period: tuple[date, date] | None = None,
              subject_ids: set[UUID] | None = None, include_decided: bool = False,
-             params: dict[str, float] | None = None) -> Evaluation:
+             params: dict[str, float] | None = None, as_undecided: set[UUID] | None = None,
+             reserve: bool = True, no_reserve: set[UUID] | None = None, today: date | None = None) -> Evaluation:
     """Candidates for every undecided booked transaction (or ``subject_ids``), in chronological order.
 
-    Nothing is written. ``include_decided`` evaluates decided subjects as if undecided (calibration).
+    Nothing is written. ``include_decided`` evaluates decided subjects as if undecided (calibration);
+    ``as_undecided`` (with it) widens the transactions whose decisions are left out of the context
+    beyond the subjects (a fold of the calibration: the other labeled transfers are neither decided nor
+    evaluated). Reservation: the rank 1 the automation would close (``auto.eligibility`` with these
+    parameters) claims its targets for the later transfers of the run - only that one (review of 4A,
+    point 4); ``reserve=False`` (no automation) claims nothing, ``no_reserve`` lists transfers whose
+    claim must not count (the automation refused them in an earlier pass).
     """
+    from kasa.core.matching import auto     # auto imports this module
+
     exclude = None
-    if include_decided and subject_ids:
+    undecided = set(as_undecided or ()) | set(subject_ids or ()) if include_decided else set()
+    if undecided:
         # a decided split payment: every leg's matches are left out, not only the subject's
-        exclude = set(subject_ids) | {row[0] for row in conn.execute(
+        exclude = undecided | {row[0] for row in conn.execute(
             """
             SELECT id FROM l1_bank_transaction WHERE mpp_group_id IN (
                    SELECT mpp_group_id FROM l1_bank_transaction WHERE id = ANY(%s) AND mpp_group_id IS NOT NULL)
             """,
-            (list(subject_ids),),
+            (list(undecided),),
         ).fetchall()}
     ctx = load_context(conn, company_id, exclude_matches_of=exclude)
+    if today is not None:
+        ctx.today = today
     params = params or load_params(conn, company_id)
+    skip = set(no_reserve or ())
+    reserved: set[UUID] = set()
     subjects = []
     for tx in ctx.txs.values():
         if subject_ids is not None and tx.id not in subject_ids:
@@ -1218,6 +1351,7 @@ def evaluate(conn: psycopg.Connection, company_id: UUID, *, period: tuple[date, 
             considered = [c for c in considered if proposal_key(c.proposal()) not in rejected]
         ranked = rank(considered, params)
         results.append(TxResult(tx, ranked, considered, group, amount))
-        if ranked and ranked[0].hard and not ranked[0].tie:
+        if reserve and ranked and tx.id not in skip and auto.eligibility(ranked[0], params, ctx.builtin_rules)[0]:
             _reserve(ctx, ranked[0])
-    return Evaluation(ctx, results, params)
+            reserved.add(tx.id)
+    return Evaluation(ctx, results, params, reserved)

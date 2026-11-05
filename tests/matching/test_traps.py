@@ -73,16 +73,51 @@ def test_one_transfer_for_three_invoices_is_one_group(mconn, odm):
     assert len({r[5] for r in rows}) == 1
 
 
+def _accept_rank1(conn, entry_reference, decided_by="artur"):
+    from kasa.core.matching.decide import apply_match
+
+    suggestion = conn.execute(
+        "SELECT id FROM l2_suggestion WHERE subject_id = %s AND status = 'open' AND rank = 1",
+        (tx_id(conn, entry_reference),)).fetchone()[0]
+    return apply_match(conn, suggestion, decided_by=decided_by)
+
+
 def test_correction_is_a_negative_row_of_the_group(mconn, odm):
     ref = "ML2610205610950"
     best = result_for(mconn, odm.id, ref).best
-    assert best.hard and "correction_chain" in best.tags
+    assert "correction_chain" in best.tags
     assert [(i.label, i.amount_minor, i.difference_kind) for i in best.items] == [
         ("FV 2/10/2026", 1000000, None), ("KOR 1/10/2026", -200000, "correction")]
+    # Nordis is known to the bank by name and IBAN, the invoice by NIP: the same name is not hard evidence
+    assert not best.hard and "counterparty_name_only" in best.tags
     run_matching(mconn, odm, period=OCTOBER)
+    assert _status(mconn, ref) is None and _matches(mconn, ref) == []
+    _accept_rank1(mconn, ref)                                      # the owner, in the queue
     assert sorted((r[0], r[1], r[3]) for r in _matches(mconn, ref)) == [
         ("FV 2/10/2026", 1000000, None), ("KOR 1/10/2026", -200000, "correction")]
     assert check_match_coverage(mconn, odm.id, *OCTOBER, record=False).ok
+
+
+def test_a_persons_match_links_the_iban_and_then_the_invoice_number_is_hard(mconn, odm):
+    first, later = "ML2610205610950", "ML2610301580065"            # Nordis: correction chain, then FV Wrocław
+    before = result_for(mconn, odm.id, later).best
+    assert not before.hard and "counterparty_name_only" in before.tags
+    run_matching(mconn, odm, period=OCTOBER)
+    decision = _accept_rank1(mconn, first)
+    linked = mconn.execute("SELECT evidence -> 'iban_linked' FROM l3_decision_log WHERE id = %s",
+                           (decision,)).fetchone()[0]
+    iban = mconn.execute("SELECT counterparty_iban_raw FROM l1_bank_transaction WHERE entry_reference = %s",
+                         (first,)).fetchone()[0].replace(" ", "")
+    assert linked["iban"] == iban and linked["nip"] == "5867422344"
+    ibans = mconn.execute("SELECT ibans FROM l1_counterparty WHERE nip = '5867422344' AND superseded_by IS NULL"
+                          ).fetchone()[0]
+    assert iban in ibans
+    # from now on the same IBAN agrees by IBAN: the next invoice number is hard evidence and automatic
+    after = result_for(mconn, odm.id, later).best
+    assert after.hard and after.rule_key == "builtin:match_invoice_number_same_counterparty"
+    assert "counterparty_strong" in after.tags
+    run_matching(mconn, odm, period=OCTOBER)
+    assert _status(mconn, later)[:3] == ("matched", None, "rule")
 
 
 def test_revolut_with_the_client_in_the_title_goes_to_the_queue(mconn, odm):
@@ -109,10 +144,16 @@ def test_card_saas_has_the_named_difference_fx(mconn, odm):
 def test_euro_transfer_closes_the_invoice_in_euro_with_the_difference_kurs(mconn, odm):
     ref = "202610280050568790"
     best = result_for(mconn, odm.id, ref).best
-    assert best.hard and best.rule_key == "builtin:match_invoice_number_same_counterparty"
+    # Helios is known only by name on both sides (the invoice has no NIP of the buyer): not hard
+    assert not best.hard and best.items[0].label == "FV 5/10/2026" and "counterparty_name_only" in best.tags
     run_matching(mconn, odm, period=OCTOBER)
+    decision = _accept_rank1(mconn, ref)
     assert [(r[0], r[1], r[2], r[3], r[4]) for r in _matches(mconn, ref)] == [
         ("FV 5/10/2026", 5273750, 1250000, "fx", -34750)]
+    # the owner's match ties Helios' IBAN to the counterparty with its foreign tax id (VAT-UE)
+    linked = mconn.execute("SELECT evidence -> 'iban_linked' FROM l3_decision_log WHERE id = %s",
+                           (decision,)).fetchone()[0]
+    assert linked["foreign_tax_id"] == "DE686148513" and linked["nip"] is None
 
 
 def test_blik_for_a_hostess_proposes_the_pm_sheet_row_never_automatic(mconn, odm):
@@ -163,7 +204,11 @@ def test_advance_waits_180_days_and_a_card_30_days(mconn, odm):
 def test_overpayment_is_a_possible_duplicate_and_the_refund_links_to_it(mconn, odm):
     first, second, refund = "202610136613771164", "202610143818524718", "202610219260141951"
     results = {r.tx.entry_reference: r for r in evaluate(mconn, odm.id).results}
-    assert results[first].best.hard                                  # the first payment closes the invoice
+    # the first payment names the invoice; Orbita is known by name only - the owner closes it
+    assert results[first].best.items[0].label == "FV 5/09/2026" and not results[first].best.hard
+    run_matching(mconn, odm, period=OCTOBER)
+    _accept_rank1(mconn, first)
+    results = {r.tx.entry_reference: r for r in evaluate(mconn, odm.id).results}
     dup = results[second].best
     assert (dup.kind, dup.subtype, dup.items[0].related_transaction_id) == ("related", "duplicate", tx_id(mconn, refund))
     assert (dup.items[0].difference_kind, dup.items[0].difference_minor) == ("overpayment", 307500)
@@ -175,7 +220,7 @@ def test_overpayment_is_a_possible_duplicate_and_the_refund_links_to_it(mconn, o
     relaxed = {"auto_threshold": 0.0, "margin_min": 0.0}
     assert not auto.eligibility(dup, relaxed, {})[0] and not auto.eligibility(back, relaxed, {})[0]
     run_matching(mconn, odm, period=OCTOBER)
-    assert _status(mconn, first)[:3] == ("matched", None, "rule")
+    assert _status(mconn, first)[:3] == ("matched", None, "human")
     assert _status(mconn, second) is None and _status(mconn, refund) is None
 
 

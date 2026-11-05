@@ -14,7 +14,8 @@
   in the title, ``contract_refs``, ``case_refs`` (bailiff), ``other_refs`` (decisions),
   ``installment`` (``rata 10/36``), ``card`` (masked number), ``original_amount``
   (``Kwota oryg. 99,00 EUR, kurs 4,4154``), ``phones`` and ``operator`` (Revolut, PayU,
-  Stripe, ... with its reference).
+  Stripe, ... with its reference) and ``payer_hint`` - the company with its legal form written in the
+  title of an operator's payment (Revolut, PayU, Stripe: the client is only in the title).
 
 ``classify_op_type`` gives the mechanical operation type from the bank code, the
 title and the counterparty - never a category.
@@ -30,7 +31,7 @@ from kasa.core.bank.model import BankEntry
 from kasa.core.normalize import normalize_iban, normalize_invoice_number, normalize_nip, parse_amount, to_minor
 from kasa.core.pseudonym import detect, fold
 
-EXTRACTOR_VERSION = 1
+EXTRACTOR_VERSION = 2              # 2: payer_hint
 
 # --------------------------------------------------------------------------
 # Patterns
@@ -108,6 +109,48 @@ OPERATORS: dict[str, tuple[re.Pattern[str], re.Pattern[str] | None]] = {
     "wise": (re.compile(r"\b(?:wise|transferwise)\b", re.I), None),
     "adyen": (re.compile(r"\badyen\b", re.I), None),
 }
+
+
+# The payer behind an operator: a company with its legal form written in the title
+# ("KWADRAT DEVELOPMENT SP. Z O.O. - wynajem naglosnienia" from Revolut Bank UAB).
+PAYER_HINT_OPERATORS = frozenset({"revolut", "payu", "stripe"})
+LEGAL_FORM_RE = re.compile(
+    r"(?<![\w.])(?P<form>sp\.?\s*z\s*o\.?\s*o\.?|sp\.?\s*k\.?|sp\.?\s*j\.?|s\.?\s?k\.?\s?a\.?"
+    r"|s\.\s?a\.?|sa(?=\s*$|\s*[-,;|/])|p\.?s\.?a\.?|gmbh|ltd\.?|limited|inc\.?|llc|uab|plc"
+    r"|b\.v\.?|n\.v\.?|sarl|s\.p\.a\.?|corp\.?)(?!\w)",
+    re.IGNORECASE,
+)
+REFERENCE_WORD_RE = re.compile(r"^[A-Za-z]{1,6}[-_/]?\w*\d\w*$|^\d{5,}$")   # REV-123, TR-ABC-1, 202610...
+_HINT_STOP = frozenset("""
+od dla za na do w z i oraz przelew wplata platnosc zaplata zaplaty oplata faktura faktury fv fa nr numer tytulem
+tytul klient klienta zamowienie zamowienia ref revolut payu stripe from payment to
+""".split())
+
+
+def payer_hint(lines: list[str]) -> dict[str, Any] | None:
+    """A company name with its legal form written in a title (the payer behind an operator), or None.
+
+    Up to five name-like words before the legal form (a capital letter or a digit, not a filler word
+    such as "zapłata od"), e.g. ``{"name": "KWADRAT DEVELOPMENT SP. Z O.O.", "legal_form": "SP. Z O.O."}``.
+    Only companies - a person's name in a title is personal data and is never kept here.
+    """
+    for line in lines:
+        for m in LEGAL_FORM_RE.finditer(line):
+            words = re.findall(r"[^\s,;:|()\[\]]+", line[: m.start()])
+            name: list[str] = []
+            for word in reversed(words):
+                bare = word.strip("\"'„”.-/")
+                if not bare or fold(bare) in _HINT_STOP or REFERENCE_WORD_RE.match(bare) \
+                        or not (bare[0].isupper() or bare[0].isdigit() or bare[0] == "&"):
+                    break
+                name.insert(0, bare)
+                if len(name) == 5:
+                    break
+            if not name or not any(re.search(r"[^\W\d_]{2,}", w) for w in name):
+                continue
+            form = re.sub(r"\s+", " ", m.group("form").strip())
+            return {"name": f"{' '.join(name)} {form}", "legal_form": form}
+    return None
 
 
 def _crc8(data: bytes) -> int:
@@ -404,6 +447,10 @@ def extract_title(lines: list[str], *, reference_date: date | None = None,
             operator = {"name": name, "ref": ref_match.group(1) if ref_match else None,
                         "via": "counterparty" if detector.search(counterparty_name or "") else "title"}
             break
+    if operator and operator["name"] in PAYER_HINT_OPERATORS:
+        hint = payer_hint(lines)
+        if hint:
+            out["payer_hint"] = hint
 
     for key, value in (("invoice_numbers", unique_invoices), ("ksef_numbers", ksef), ("periods", periods),
                        ("dates", sorted(dict.fromkeys(dates))), ("contract_refs", contract_refs),

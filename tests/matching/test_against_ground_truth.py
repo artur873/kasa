@@ -4,7 +4,11 @@ Flow as in production: every channel imported, title semantics read, control set
 reference file (``control-set import-ground-truth``), calibration on it, one matching run. Then:
 
 * 0 false automatic decisions against the labels - documents AND amounts (``ground_truth.json``);
-* every transfer with ``expected_route = auto`` closed by the automation, none with ``queue``;
+  a sheet row that proves the same cost (``linked_evidence``) is in the group as ``evidence_only``;
+* every transfer with ``expected_route = auto`` closed by the automation OR in the queue with the rank-1
+  suggestion agreeing with the label (review of 4A, point 2: an invoice number with a counterparty
+  agreeing only by name is not hard evidence any more - ``NAME_ONLY`` lists those transfers for the
+  coordinator); none with ``queue`` closed by the automation;
 * for ``queue``: the rank-1 suggestion says what the label says in >= 90% of the transfers;
 * truth check 2 (coverage of matches) green.
 """
@@ -25,6 +29,17 @@ from .conftest import OCTOBER
 
 TRUTH = json.loads((Path(__file__).resolve().parents[2] / "fixtures" / "odm" / "ground_truth.json")
                    .read_text(encoding="utf-8"))
+
+
+# expected_route = auto in the reference file, but the invoice number agrees with a counterparty known only by
+# NAME (the bank gives the buyer's name and IBAN, the sales invoice the buyer's NIP): not hard evidence until a
+# person's first match links the IBAN to the counterparty with the NIP (review of 4A, point 2)
+NAME_ONLY = {
+    "202610136613771164": "MB-ORBITA-1",
+    "ML2610205610950": "ML-NORDIS-KOR",
+    "202610280050568790": "MB-HELIOS-EUR",
+    "ML2610301580065": "ML-NORDIS-WRO",
+}
 
 
 def _minor(text: str) -> int:
@@ -48,12 +63,13 @@ def _actual(conn, company_id) -> tuple[dict, dict]:
         (company_id,),
     ).fetchall()}
     items: dict[str, set] = {}
-    for ref, key, amount in conn.execute(
+    evidence: dict[str, set] = {}
+    for ref, key, amount, proof in conn.execute(
         """
         SELECT t.entry_reference,
                coalesce(d.ksef_number, d.number_raw, r.entry_reference,
                         regexp_replace(f.external_ref, '^.*/|\\.[a-z]+$', '', 'g') || ':R' || lpad((ir.row_no - 1)::text, 2, '0')),
-               m.amount_minor
+               m.amount_minor, m.evidence_only
           FROM l3_match m JOIN l1_bank_transaction t ON t.id = m.transaction_id
           LEFT JOIN l1_document d ON d.id = m.document_id
           LEFT JOIN l1_bank_transaction r ON r.id = m.related_transaction_id
@@ -63,8 +79,11 @@ def _actual(conn, company_id) -> tuple[dict, dict]:
         """,
         (company_id,),
     ).fetchall():
-        items.setdefault(ref, set()).add((key, amount))
-    return statuses, items
+        if proof:
+            evidence.setdefault(ref, set()).add(key)       # one cost, many pieces of evidence (amount 0)
+        else:
+            items.setdefault(ref, set()).add((key, amount))
+    return statuses, items, evidence
 
 
 def _subtype(value):
@@ -93,7 +112,7 @@ def test_full_month_against_the_reference_truth(mconn, odm):
     assert calibration.chosen.false_autos == 0 and not calibration.auto_off
     report = run_matching(mconn, odm, period=OCTOBER)
     assert not report.auto_errors
-    statuses, items = _actual(mconn, odm.id)
+    statuses, items, evidence = _actual(mconn, odm.id)
     truth = {t["entry_reference"]: t for t in TRUTH["transactions"]}
 
     # 1. 0 false automatic decisions: status, documents and amounts as in the reference file
@@ -110,16 +129,14 @@ def test_full_month_against_the_reference_truth(mconn, odm):
                 SUBTYPE_BY_CATEGORY.get(tx.get("no_document_category") or "", "other")):
             false[ref] = (subtype, tx.get("no_document_category"))
     assert not false, false
+    # one cost, many pieces of evidence: the sheet row of the MC is evidence in the group of his bill
+    assert {ref: keys for ref, keys in evidence.items()} == {
+        t["entry_reference"]: set(t["linked_evidence"]) for t in truth.values()
+        if t["linked_evidence"] and t["entry_reference"] in automatic}
 
-    # 2. every "auto" of the reference closed by the automation, no "queue" closed by it
-    expected_auto = {ref for ref, t in truth.items() if t["expected_route"] == "auto"}
-    expected_queue = {ref for ref, t in truth.items() if t["expected_route"] == "queue"}
-    missing = {ref: truth[ref]["scenario_key"] for ref in expected_auto - automatic}
-    assert not missing, f"powinny być automatem: {missing}"
-    assert not automatic & expected_queue, automatic & expected_queue
-    assert len(automatic) == 48 and report.auto == 45      # 45 decisions, 3 of them close a VAT leg as well
-
-    # 3. queue: the rank-1 suggestion agrees with the label in >= 90%
+    # 2. every "auto" of the reference closed by the automation - or, without hard evidence (a counterparty
+    # agreeing only by name), in the queue with the rank-1 suggestion that agrees with the label; no "queue"
+    # closed by the automation
     labels = {mconn.execute("SELECT entry_reference FROM l1_bank_transaction WHERE id = %s",
                             (subject,)).fetchone()[0]: label for subject, label in labels_of(mconn, set_id).items()}
     rank1 = dict(mconn.execute(
@@ -129,6 +146,16 @@ def test_full_month_against_the_reference_truth(mconn, odm):
         """,
         (odm.id,),
     ).fetchall())
+    expected_auto = {ref for ref, t in truth.items() if t["expected_route"] == "auto"}
+    expected_queue = {ref for ref, t in truth.items() if t["expected_route"] == "queue"}
+    queued_auto = expected_auto - automatic
+    assert queued_auto == set(NAME_ONLY), {ref: truth[ref]["scenario_key"] for ref in queued_auto}
+    assert all(ref in rank1 and _rank1_agrees(rank1[ref], labels[ref]) for ref in queued_auto), {
+        ref: rank1.get(ref) for ref in queued_auto}
+    assert not automatic & expected_queue, automatic & expected_queue
+    assert len(automatic) == 44 and report.auto == 41      # 41 decisions, 3 of them close a VAT leg as well
+
+    # 3. queue: the rank-1 suggestion agrees with the label in >= 90%
     assert expected_queue <= set(rank1)
     disagree = {ref: (rank1[ref]["final_status"], labels[ref]["status"]) for ref in expected_queue
                 if not _rank1_agrees(rank1[ref], labels[ref])}
@@ -138,4 +165,4 @@ def test_full_month_against_the_reference_truth(mconn, odm):
     # 4. truth check 2
     coverage = check_match_coverage(mconn, odm.id, *OCTOBER)
     assert coverage.ok, coverage.detail
-    assert coverage.detail["transactions"] == 33 and coverage.detail["documents"] == 32
+    assert coverage.detail["transactions"] == 29 and coverage.detail["documents"] == 28

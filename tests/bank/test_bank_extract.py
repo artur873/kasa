@@ -137,6 +137,20 @@ def test_ksef_number_phone_card_operator_and_original_amount():
     assert extract_title(["STRIPE PAYOUT po_1NxAbCdEfGhIjK"])["operator"]["ref"] == "po_1NxAbCdEfGhIjK"
 
 
+def test_payer_hint_is_the_company_with_its_legal_form_behind_an_operator():
+    revolut = extract_title(["KWADRAT DEVELOPMENT SP. Z O.O. - wynajem naglosnienia"],
+                            counterparty_name="Revolut Bank UAB")
+    assert revolut["payer_hint"] == {"name": "KWADRAT DEVELOPMENT SP. Z O.O.", "legal_form": "SP. Z O.O."}
+    payu = extract_title(["PayU nr 12345678 - zaplata od ACME Polska sp. z o.o. za FV 9/10/2026"])
+    assert payu["payer_hint"]["name"] == "ACME Polska sp. z o.o."
+    stripe = extract_title(["STRIPE PAYOUT po_1NxAbCdEfGhIjK Helios Software GmbH"])
+    assert stripe["payer_hint"]["name"] == "Helios Software GmbH"
+    # no operator, or no legal form (a person): nothing - a name of a person is never kept here
+    assert "payer_hint" not in extract_title(["Zaplata od ACME Polska sp. z o.o. za FV 9/10/2026"])
+    assert "payer_hint" not in extract_title(["Jan Kowalski - zwrot za bilety"], counterparty_name="Revolut Bank UAB")
+    assert "payer_hint" not in extract_title(["przelew dla sasiada"], counterparty_name="Revolut Bank UAB")
+
+
 def test_every_fixture_title_extracts_without_error():
     for _slug, entry in ENTRIES.values():
         out = extract_title(entry.title_lines, reference_date=entry.effective_date,

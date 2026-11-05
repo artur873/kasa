@@ -52,7 +52,6 @@ from kasa.core.pseudonym import (
     pseudonymize_text,
     register_person,
     sensitive_hits,
-    sensitive_words_for,
 )
 from kasa.core.raw_store import RawRecord, store_raw
 
@@ -61,7 +60,9 @@ log = logging.getLogger(__name__)
 # Bump when parsing or extraction changes: the next ingestion writes new fact
 # rows (schema_version = this) and supersedes the old ones.
 # 2: extracted.phones keeps only the pseudonym (no plain number in the facts).
-PARSER_SCHEMA_VERSION = 2
+# 3: extracted.payer_hint (a company with its legal form in the title of an operator's payment); `sensitive`
+#    from the title AND the counterparty name with the list of the semantics gate (database terms too).
+PARSER_SCHEMA_VERSION = 3
 CREATED_BY = "kasa.bank"
 MPP_GROUP_NAMESPACE = uuid.UUID("6b617361-6d70-7000-8000-000000000001")
 MPP_DATE_TOLERANCE = timedelta(days=1)
@@ -346,12 +347,19 @@ class _Prepared:
     raw_meta: dict[str, Any]
 
 
-def _sensitive_words(company: Company) -> list[str]:
+def _sensitive_words(conn: psycopg.Connection, company: Company) -> list:
+    """The same list as the semantics gate (``semantics.gate.terms_for``): core + extension + database terms.
+
+    The flag is computed once at ingestion from the title AND the counterparty name (review of 3/4B,
+    point 13); the gate reads both as well, and a subject it flags stays flagged (``flagged_subjects``).
+    """
+    from kasa.core.sensitive import load_terms
+
     try:
         words = get_extension(company.extension_slug).sensitive_words
     except ExtensionError:
         words = []
-    return sensitive_words_for(words)
+    return load_terms(conn, company.id, words)
 
 
 def _nbp_note(conn: psycopg.Connection, entry: BankEntry) -> dict[str, Any] | None:
@@ -449,7 +457,7 @@ def store_entries(
             own_nip = inferred
             result.warnings.append(f"NIP firmy {inferred} odczytany z danych banku ({basis})")
     context = context if context is not None else load_context(conn, company.id)
-    words = _sensitive_words(company)
+    words = _sensitive_words(conn, company)
 
     # Pass 1: facts that do not depend on pseudonymization; register every party first,
     # so that company names and persons are known before any title is pseudonymized.
@@ -495,7 +503,7 @@ def store_entries(
 
 
 def _insert_transaction(conn: psycopg.Connection, company: Company, account: AccountRow, item: _Prepared,
-                        context: PseudonymContext, words: list[str]) -> UUID:
+                        context: PseudonymContext, words: list) -> UUID:
     entry = item.entry
     extracted = dict(item.extracted)
     title_ps, hits = pseudonymize_text(conn, company.id, entry.title or None, context=context)
@@ -511,6 +519,7 @@ def _insert_transaction(conn: psycopg.Connection, company: Company, account: Acc
             "UPDATE l1_counterparty SET name_pseudonymized = %s WHERE id = %s AND name_pseudonymized IS NULL",
             (counterparty_ps, item.counterparty.id),
         )
+    # the title and the name of the other party: a sensitive word in either bypasses the model
     sensitive = sorted(set(sensitive_hits(entry.title, words)) | set(sensitive_hits(entry.counterparty_name, words)))
     if extracted.get("phones"):
         # only the pseudonym is kept in the facts; the number itself stays in title_raw (phase 2 review)

@@ -8,10 +8,10 @@ from kasa.core.rules import audit, lifecycle
 
 def test_sample_two_percent_min_twenty_reproducible_and_once_per_month(qconn, odm):
     population = audit.population(qconn, odm.id, "2026-10")
-    assert len(population) == 45                    # the 45 matches of the automation in October (objects not approved)
-    assert audit.sample_size(45) == 20 and audit.sample_size(1500) == 30 and audit.sample_size(7) == 7
+    assert len(population) == 41                    # the 41 matches of the automation in October (objects not approved)
+    assert audit.sample_size(41) == 20 and audit.sample_size(1500) == 30 and audit.sample_size(7) == 7
     report = audit.sample(qconn, odm, "2026-10", seed=7)
-    assert report.population == 45 and report.sample_size == 20 and len(report.drawn) == 20
+    assert report.population == 41 and report.sample_size == 20 and len(report.drawn) == 20
     again = audit.sample(qconn, odm, "2026-10", seed=8)
     assert again.existing and again.sample_size == 20
     rows = audit.list_samples(qconn, odm.id, month="2026-10")

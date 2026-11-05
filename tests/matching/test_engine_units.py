@@ -134,7 +134,7 @@ def test_human_decision_on_a_queue_suggestion(mconn, odm):
 
 
 def test_revoked_match_gives_the_amount_back_to_the_invoice(mconn, odm):
-    ref = tx_id(mconn, "202610136613771164")
+    ref = tx_id(mconn, "202610086622571743")              # Drukarnia Format: FV number + IBAN, automatic
     run_matching(mconn, odm, period=OCTOBER)
     doc = mconn.execute("SELECT document_id, decision_id FROM l3_match WHERE transaction_id = %s", (ref,)).fetchone()
     assert load_context(mconn, odm.id).docs[doc[0]].open_minor == 0
@@ -150,7 +150,7 @@ def test_revoked_match_gives_the_amount_back_to_the_invoice(mconn, odm):
         mconn.execute(f"UPDATE {table} SET status = 'revoked', revoked_by_decision = %s, method = 'human' "
                       "WHERE decision_id = %s", (revoke, doc[1]))
     ctx = load_context(mconn, odm.id)
-    assert ctx.docs[doc[0]].open_minor == 307500 and ref not in ctx.decided
+    assert ctx.docs[doc[0]].open_minor == ctx.docs[doc[0]].gross_minor == 295200 and ref not in ctx.decided
     assert ref in {r.tx.id for r in evaluate(mconn, odm.id).results}
 
 

@@ -11,22 +11,28 @@ def test_match_commands(copy_url, capsys):
     db = ["--database-url", copy_url]
     assert main([*db, "match", "run", "--company", "odm", "--month", "2026-10", "--dry-run"]) == 0
     out = capsys.readouterr().out
-    assert "SYMULACJA" in out and "automat: 45" in out and "remisy: 1" in out
+    assert "SYMULACJA" in out and "automat: 41" in out and "remisy: 1" in out
     with psycopg.connect(copy_url) as conn:
         assert conn.execute("SELECT count(*) FROM l2_suggestion WHERE kind = 'match'").fetchone() == (0,)
 
+    assert main([*db, "match", "status", "--company", "odm", "--month", "2026-10"]) == 0
+    assert "UWAGA: brak kalibracji" in capsys.readouterr().out
     assert main([*db, "match", "calibrate", "--company", "odm", "--control-set", "ground-truth-transaction"]) == 0
-    assert "fałszywych 0" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    # 0 false on the test folds, but 0 errors on 80 labels do not bound the error below 0.5% yet
+    assert "fałszywych 0" in out and "5 foldów po kontrahencie" in out
+    assert "UWAGA: kalibracja jeszcze niewiarygodna" in out
     assert main([*db, "match", "run", "--company", "odm", "--month", "2026-10"]) == 0
     out = capsys.readouterr().out
-    assert "automat: 45" in out and "do kolejki: 35" in out and "kontrola prawdy 2 (2026-10): zielona" in out
+    assert "automat: 41" in out and "do kolejki: 39" in out and "kontrola prawdy 2 (2026-10): zielona" in out
     assert main([*db, "match", "run", "--company", "odm"]) == 0
-    assert "nowe 0, bez zmian 35" in capsys.readouterr().out
+    assert "nowe 0, bez zmian 39" in capsys.readouterr().out
 
     assert main([*db, "match", "status", "--company", "odm", "--month", "2026-10"]) == 0
     out = capsys.readouterr().out
-    # 45 automatic decisions close 48 transfers (three split payments have a VAT leg each)
-    assert "z decyzją: 48" in out and "kontrola prawdy 2: zielona" in out and "w kolejce (otwarte sugestie): 35" in out
+    # 41 automatic decisions close 44 transfers (three split payments have a VAT leg each)
+    assert "z decyzją: 44" in out and "kontrola prawdy 2: zielona" in out and "w kolejce (otwarte sugestie): 39" in out
+    assert "UWAGA: kalibracja jeszcze niewiarygodna" in out and "765 etykiet" in out
 
     assert main([*db, "match", "explain", "202610277149922608"]) == 0
     out = capsys.readouterr().out

@@ -68,6 +68,7 @@ WEIGHTS: dict[str, float] = {
     "no_document_card": 2.0,
     "no_document_fallback": 1.0,
     "to_clarify_blik_person": 2.5,
+    "awaiting_ksef": 2.0,        # the title names an invoice that is not in KSeF yet: wait a day (never auto)
     # layer 5: learned rules (4C) by stage
     "rule_hint": 1.5,
     "rule_shadow": 0.0,
@@ -102,6 +103,7 @@ REFUND_WINDOW = 90
 OWN_PAIR_WINDOW = 3
 ADVANCE_AWAIT_DAYS = 180
 CARD_AWAIT_DAYS = 30
+KSEF_AWAIT_DAYS = 1              # an invoice named in the title, not in KSeF yet: until the next run
 
 SUBSET_MIN = 2
 SUBSET_MAX = 6

@@ -58,27 +58,33 @@ def party(conn: psycopg.Connection, company_id: UUID, name: str, nip: str | None
 def add_doc(conn: psycopg.Connection, company_id: UUID, number: str, gross_minor: int, *, direction: str = "purchase",
             counterparty_id: UUID | None = None, nip: str | None = None, name: str | None = None,
             issue: date = date(2026, 10, 5), due: date | None = date(2026, 10, 20), kind: str = "vat",
-            currency: str = "PLN", payment_iban: str | None = None, corrects: UUID | None = None) -> UUID:
+            currency: str = "PLN", payment_iban: str | None = None, corrects: UUID | None = None,
+            ksef_number: str | None = None, fx_rate: str | None = None) -> UUID:
     own_nip = conn.execute("SELECT nip FROM company WHERE id = %s", (company_id,)).fetchone()[0]
     seller_nip, buyer_nip = (nip, own_nip) if direction == "purchase" else (own_nip, nip)
     seller_name, buyer_name = (name, "ODM") if direction == "purchase" else ("ODM", name)
+    gross_pln = gross_minor if currency == "PLN" else (
+        round(gross_minor * float(fx_rate)) if fx_rate else None)
     return conn.execute(
         """
         INSERT INTO l1_document (company_id, direction, number_raw, number_normalized, kind, issue_date, due_date,
                                  seller_nip, buyer_nip, seller_name, buyer_name, payment_iban, currency, gross_minor,
-                                 gross_pln_minor, counterparty_id, corrects_document_id, source, method, created_by)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'test', 'code', 'pytest')
+                                 gross_pln_minor, counterparty_id, corrects_document_id, ksef_number, fx_rate,
+                                 fx_rate_source, source, method, created_by)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'test', 'code',
+                'pytest')
         RETURNING id
         """,
         (company_id, direction, number, normalize_invoice_number(number), kind, issue, due, seller_nip, buyer_nip,
-         seller_name, buyer_name, payment_iban, currency, gross_minor, gross_minor if currency == "PLN" else None,
-         counterparty_id, corrects),
+         seller_name, buyer_name, payment_iban, currency, gross_minor, gross_pln, counterparty_id, corrects,
+         ksef_number, fx_rate, "document" if fx_rate else None),
     ).fetchone()[0]
 
 
 def add_tx(conn: psycopg.Connection, company_id: UUID, amount_minor: int, title: str, *,
            counterparty_id: UUID | None = None, name: str | None = None, iban: str | None = None,
-           day: date = date(2026, 10, 21), op_type: str = "transfer", extracted: dict | None = None) -> UUID:
+           day: date = date(2026, 10, 21), op_type: str = "transfer", extracted: dict | None = None,
+           original_amount_minor: int | None = None, original_currency: str | None = None) -> UUID:
     from psycopg.types.json import Jsonb
 
     from kasa.core.bank.extract import extract_title
@@ -89,10 +95,19 @@ def add_tx(conn: psycopg.Connection, company_id: UUID, amount_minor: int, title:
         INSERT INTO l1_bank_transaction (company_id, account_id, entry_reference, fingerprint, status, booking_date,
                                          transaction_date, amount_minor, currency, counterparty_name_raw,
                                          counterparty_iban_raw, title_raw, extracted, op_type, counterparty_id,
-                                         source, method, created_by)
-        VALUES (%s, %s, %s, %s, 'booked', %s, %s, %s, 'PLN', %s, %s, %s, %s, %s, %s, 'test', 'code', 'pytest')
+                                         original_amount_minor, original_currency, source, method, created_by)
+        VALUES (%s, %s, %s, %s, 'booked', %s, %s, %s, 'PLN', %s, %s, %s, %s, %s, %s, %s, %s, 'test', 'code', 'pytest')
         RETURNING id
         """,
         (company_id, account_id(conn, company_id), f"T{uuid.uuid4().hex[:12]}", uuid.uuid4().hex, day, day,
-         amount_minor, name, iban, title, Jsonb(extracted), op_type, counterparty_id),
+         amount_minor, name, iban, title, Jsonb(extracted), op_type, counterparty_id, original_amount_minor,
+         original_currency),
     ).fetchone()[0]
+
+
+def ksef_number(nip: str, day: str = "20261005", serial: str = "A1B2C3D4E5F6") -> str:
+    """A KSeF number with a valid CRC-8."""
+    from kasa.core.bank.extract import _crc8
+
+    head = f"{nip}-{day}-{serial}"
+    return f"{head}-{_crc8(head.encode('ascii')):02X}"

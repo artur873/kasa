@@ -105,9 +105,12 @@ def _target_open(conn: psycopg.Connection, item: dict[str, Any]) -> int | None:
     if item.get("internal_record_id"):
         row = conn.execute(
             """
-            SELECT r.amount_minor - coalesce((
-                   SELECT sum(coalesce(m.document_amount_minor, m.amount_minor)) FROM l3_match m
-                    WHERE m.status = 'active' AND m.internal_record_id = r.id), 0)
+            SELECT CASE WHEN EXISTS (SELECT 1 FROM l3_match e WHERE e.status = 'active' AND e.evidence_only
+                                        AND e.internal_record_id = r.id)
+                        THEN 0    -- evidence of a document: the cost is settled through the document
+                        ELSE r.amount_minor - coalesce((
+                             SELECT sum(coalesce(m.document_amount_minor, m.amount_minor)) FROM l3_match m
+                              WHERE m.status = 'active' AND m.internal_record_id = r.id), 0) END
               FROM l1_internal_record r WHERE r.id = %s
             """,
             (item["internal_record_id"],),
@@ -140,6 +143,102 @@ def _split(amount: int, legs: list[dict[str, Any]]) -> list[int]:
     shares = [amount * abs(int(leg["amount_minor"])) // total for leg in legs]
     shares[0] += amount - sum(shares)
     return shares
+
+
+def _evidence_rows(conn: psycopg.Connection, company_id: UUID, suggestion: dict[str, Any],
+                   items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Rows of internal files that prove the same cost as the documents of the match (``linked_evidence``).
+
+    One cost, many pieces of evidence (briefing, step 5): written into the same group with
+    ``evidence_only`` and amount 0 - never a second settlement. Only rows of this company that the
+    proposal does not settle itself and that no other active match uses.
+    """
+    if not any(i.get("document_id") for i in items):
+        return []
+    linked = ((suggestion["evidence"] or {}).get("detail") or {}).get("linked_evidence") or []
+    named = {str(i.get("internal_record_id")) for i in items if i.get("internal_record_id")}
+    out, seen = [], set()
+    for entry in linked:
+        record_id = entry.get("internal_record_id")
+        if not record_id or record_id in named or record_id in seen:
+            continue
+        seen.add(record_id)
+        row = conn.execute(
+            """
+            SELECT r.id FROM l1_internal_record r
+             WHERE r.id = %s AND r.company_id = %s AND r.superseded_by IS NULL
+               AND NOT EXISTS (SELECT 1 FROM l3_match m WHERE m.internal_record_id = r.id AND m.status = 'active')
+            """,
+            (record_id, company_id),
+        ).fetchone()
+        if row:
+            out.append({"internal_record_id": row[0], "label": entry.get("label")})
+    return out
+
+
+def _iban_link(conn: psycopg.Connection, company_id: UUID, transaction_id: UUID,
+               items: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """A person's match ties the IBAN of the payer/payee to the counterparty with the NIP of the invoice.
+
+    Review of 4A, point 2: an invoice number with a counterparty agreeing only by NAME is not hard evidence
+    (a sales invoice has the buyer's NIP, the bank gives the buyer's name and IBAN). The first match of a
+    person links that IBAN to the counterparty of the invoice (``kasa_upsert_counterparty`` with the IBAN);
+    from then on the next transfer from that account agrees by IBAN - hard evidence. Only when it is safe:
+    one counterparty with a NIP (or a foreign tax id) on the documents, the same name as the bank's, the IBAN
+    not of an operator (Revolut, PayU...: the client is only in the title), not an own account and not on
+    another NIP.
+    """
+    from kasa.core.matching.data import name_tokens
+    from kasa.core.normalize import normalize_iban
+
+    doc_ids = [i["document_id"] for i in items if i.get("document_id")]
+    if not doc_ids:
+        return None
+    tx = conn.execute(
+        """
+        SELECT t.counterparty_iban_raw, t.counterparty_name_raw, t.op_type::text, t.extracted, c.name
+          FROM l1_bank_transaction t LEFT JOIN l1_counterparty c ON c.id = t.counterparty_id
+         WHERE t.id = %s
+        """,
+        (transaction_id,),
+    ).fetchone()
+    if tx is None or not tx[0] or tx[2] == "own" or (tx[3] or {}).get("operator"):
+        return None
+    try:
+        iban = normalize_iban(tx[0])
+    except (TypeError, ValueError):
+        return None
+    if conn.execute("SELECT 1 FROM l1_bank_account WHERE company_id = %s AND iban = %s",
+                    (company_id, iban)).fetchone():
+        return None
+    parties = conn.execute(
+        """
+        SELECT DISTINCT c.id, coalesce(c.nip, c.foreign_tax_id), c.name, c.ibans, c.nip, c.foreign_tax_id
+          FROM l1_document d
+          JOIN l1_counterparty c ON c.id = d.counterparty_id
+         WHERE d.id = ANY(%s) AND c.superseded_by IS NULL
+        """,
+        (doc_ids,),
+    ).fetchall()
+    if len(parties) != 1 or not parties[0][1]:
+        return None                                     # the documents' party has no NIP / tax id
+    cp_id, nip, name, ibans, polish_nip, foreign_tax_id = parties[0]
+    if iban in (ibans or ()):
+        return None                                     # already tied by this IBAN
+    bank_names = {name_tokens(tx[1]), name_tokens(tx[4])} - {()}
+    if not bank_names or name_tokens(name) not in bank_names:
+        return None                                     # only "the same name" becomes an IBAN tie
+    other = conn.execute(
+        """
+        SELECT 1 FROM l1_counterparty WHERE company_id = %s AND superseded_by IS NULL AND ibans @> ARRAY[%s]
+           AND coalesce(nip, foreign_tax_id) IS NOT NULL AND coalesce(nip, foreign_tax_id) <> %s
+        """,
+        (company_id, iban, nip),
+    ).fetchone()
+    if other:
+        return None                                     # the IBAN is already tied to another NIP
+    return {"counterparty_id": str(cp_id), "nip": polish_nip, "foreign_tax_id": foreign_tax_id, "iban": iban,
+            "name": name}
 
 
 def apply_match(conn: psycopg.Connection, suggestion_id: UUID, *, decided_by: str, method: str = "human",
@@ -192,15 +291,24 @@ def apply_match(conn: psycopg.Connection, suggestion_id: UUID, *, decided_by: st
 
     source = source or (AUTO_SOURCE if method == "rule" else HUMAN_SOURCE)
     score = float(suggestion["score"]) if suggestion["score"] is not None else None
+    evidence_rows = _evidence_rows(conn, company_id, suggestion, items) if final_status == "matched" else []
+    iban_link = _iban_link(conn, company_id, transaction_id, items) \
+        if method == "human" and final_status == "matched" else None
+    decision_evidence = {"suggestion_id": str(suggestion_id), "rank": suggestion["rank"],
+                         "facts": (suggestion["evidence"] or {}).get("facts") or [],
+                         "tags": (suggestion["evidence"] or {}).get("tags") or [],
+                         "legs": [str(i) for i in leg_ids]}
+    if evidence_rows:
+        decision_evidence["evidence_only"] = [{"internal_record_id": str(r["internal_record_id"]),
+                                               "label": r["label"]} for r in evidence_rows]
+    if iban_link:
+        decision_evidence["iban_linked"] = iban_link
     decision_id = log_decision(
         conn, company_id=company_id, kind="match", subject_type="transaction", subject_id=transaction_id,
         decided_by=decided_by, source=source, method=method, payload=proposal, rule_id=rule_id,
         rule_version=rule_version, suggestion_id=suggestion_id, reason=reason,
         confidence=round(min(score, 1.0), 4) if score is not None else None,
-        evidence={"suggestion_id": str(suggestion_id), "rank": suggestion["rank"],
-                  "facts": (suggestion["evidence"] or {}).get("facts") or [],
-                  "tags": (suggestion["evidence"] or {}).get("tags") or [],
-                  "legs": [str(i) for i in leg_ids]},
+        evidence=decision_evidence,
     )
     group_id = uuid4()
     common = {"company_id": company_id, "group_id": group_id, "decision_id": decision_id, "rule_id": rule_id,
@@ -232,6 +340,31 @@ def apply_match(conn: psycopg.Connection, suggestion_id: UUID, *, decided_by: st
                  "evidence": Jsonb({"suggestion_id": str(suggestion_id), "item": index + 1,
                                     "label": (detail or {}).get("label"), "mpp_role": leg.get("mpp_role")})},
             )
+    for row in evidence_rows:
+        # one cost, many pieces of evidence: the sheet row joins the group as evidence, amount 0
+        conn.execute(
+            """
+            INSERT INTO l3_match (company_id, transaction_id, internal_record_id, amount_minor, document_amount_minor,
+                                  evidence_only, group_id, decision_id, rule_id, rule_version, source, method,
+                                  confidence, evidence, created_by)
+            VALUES (%(company_id)s, %(tx)s, %(rec)s, 0, 0, true, %(group_id)s, %(decision_id)s, %(rule_id)s,
+                    %(rule_version)s, %(source)s, %(method)s, %(confidence)s, %(evidence)s, %(created_by)s)
+            """,
+            {**common, "tx": legs[0]["id"], "rec": row["internal_record_id"],
+             "evidence": Jsonb({"suggestion_id": str(suggestion_id), "label": row["label"],
+                                "evidence_of": [str(i["document_id"]) for i in items if i.get("document_id")],
+                                "note": "ten sam koszt - dowód przy dokumencie, nie drugie rozliczenie"})},
+        )
+    if iban_link:
+        conn.execute(
+            """
+            SELECT kasa_upsert_counterparty(%s, %s, %s, %s, p_foreign_tax_id => %s, p_source => 'queue',
+                                            p_method => 'human', p_evidence => %s, p_created_by => %s)
+            """,
+            (company_id, iban_link["nip"], iban_link["name"], iban_link["iban"], iban_link["foreign_tax_id"],
+             Jsonb({"basis": "human_match", "decision_id": str(decision_id), "transaction_id": str(transaction_id)}),
+             decided_by),
+        )
     for leg in legs:
         conn.execute(
             """
