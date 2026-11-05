@@ -7,7 +7,7 @@ dla agenta AI, dashboardu i kolejki przeglądu. Pełny opis: `docs/BRIEFING.md` 
 ## Stack
 - Python 3.13, PostgreSQL 16 (docelowo Supabase, region Frankfurt). psycopg 3, pydantic 2, pytest. Brak ORM: SQL w `migrations/` i w repozytoriach.
 - Lokalna baza: `postgresql://kasa:kasa@localhost:5432/kasa` (env `KASA_DATABASE_URL`). Testy używają bazy `kasa_test` (tworzona automatycznie).
-- Uruchamianie: `python -m kasa <komenda>` (CLI). Testy: `pytest -q`.
+- Uruchamianie: `python -m kasa <komenda>` (CLI). Testy: `python -m pytest -q` (samo `pytest` w tym środowisku wskazuje narzędzie uv bez zależności).
 - Migracje: `migrations/NNNN_nazwa.sql`, idempotentny runner `python -m kasa migrate`. Nigdy nie edytujemy zastosowanej migracji; dopisujemy nową.
 
 ## Niezmienne zasady (z briefingu)

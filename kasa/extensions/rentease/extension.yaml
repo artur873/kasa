@@ -1,0 +1,40 @@
+# Rozszerzenie Rentease (tylko dane testowe). Obiekt kosztowy to pokój w miesiącu:
+# ten sam mechanizm rdzenia co event w ODM, inny rodzaj obiektu.
+slug: rentease
+name: Rentease
+description: Najem pokoi; wynik liczony per pokój i miesiąc.
+
+cost_object:
+  kind: room_month
+  label: Pokój × miesiąc
+  name_template: "{room} / {month}"
+  attrs:
+    room:  {type: text, required: true, label: Pokój}
+    month: {type: month, required: true, label: Miesiąc (RRRR-MM)}
+
+categories:
+  - Czynsz
+  - Kaucje
+  - Media
+  - Naprawy i serwis
+  - Sprzątanie
+  - Prowizje bankowe
+  - Podatki (US)
+  - IT/SaaS
+  - Inne
+
+import_mappings:
+  # Lista czynszów: kto wynajmuje który pokój, w którym miesiącu i za ile.
+  # IBAN najemcy pozwala później nauczyć regułę "ten IBAN = ten lokator".
+  rent_roll:
+    target: internal_record
+    description: Lista czynszów - pokój, najemca, miesiąc, kwota czynszu
+    file_types: [xlsx, csv]
+    columns:
+      cost_object_ref: {source: pokój, required: true}
+      person:          {source: najemca, required: true}
+      month:           {source: miesiąc, type: month, required: true}
+      amount:          {source: czynsz, aliases: [kwota], type: amount, required: true}
+      tenant_iban:     {source: iban, aliases: [rachunek najemcy]}
+
+sensitive_words: []

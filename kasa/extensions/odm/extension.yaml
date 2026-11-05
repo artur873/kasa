@@ -1,0 +1,55 @@
+# Rozszerzenie ODM Partners. Obiekt kosztowy ODM to event:
+# klient + zwarte okno dat + miasto + nazwa (briefing, krok 5).
+# Lista eventów nie jest importowana - kandydaci powstają z danych,
+# człowiek zatwierdza ich w karcie (decyzja D1).
+slug: odm
+name: ODM Partners
+description: Agencja eventowa; marża liczona per event.
+
+cost_object:
+  kind: event
+  label: Event
+  name_template: "{name}"
+  attrs:
+    name:       {type: text, required: true, label: Nazwa eventu}
+    client:     {type: text, required: true, label: Klient}
+    date_start: {type: date, required: true, label: Początek}
+    date_end:   {type: date, required: true, label: Koniec}
+    city:       {type: text, label: Miasto}
+
+# Lista startowa z briefingu (kroki 4-5, decyzja D9); do potwierdzenia przez użytkownika.
+categories:
+  - IT/SaaS
+  - Czynsz biura
+  - ZUS
+  - PIT od umów cywilnoprawnych
+  - Podatki (US)
+  - Prowizje bankowe
+  - Zaliczki
+  - Kaucje
+  - Noclegi
+  - Personel eventowy
+  - Inne
+
+import_mappings:
+  # Arkusz PM: rozliczenie wewnętrzne, np. "Kowalska, 12.03, Allegro, 450".
+  # To dokument, ale nie twardy dowód alokacji, dopóki nie dojrzeje reguła (D2).
+  pm_sheet:
+    target: internal_record
+    description: Arkusz PM - kto, kiedy, przy którym evencie, ile i jak rozliczony
+    file_types: [xlsx, csv]
+    columns:
+      person:          {source: osoba, required: true}
+      record_date:     {source: data, type: date, required: true}
+      cost_object_ref: {source: event, required: true}
+      amount:          {source: kwota, type: amount, required: true}
+      # Pole pod v2 (D9): ZUS i PIT od umów cywilnoprawnych w v1 idą do UNASSIGNED.
+      settlement_type: {source: typ_rozliczenia}
+
+# Dopisywane do listy bazowej rdzenia (zdrowie, związki, komornik, alimenty).
+sensitive_words:
+  - związek zawodowy
+  - komornicze
+  - zajęcie komornicze
+  - chorobowe
+  - zwolnienie lekarskie

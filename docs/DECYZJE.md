@@ -17,3 +17,8 @@ Decyzje użytkownika (z briefingu, daty 2.11 i 3.11.2026) oraz decyzje koordynat
 | K2 | 5.11 | [K] Brak dostępu do PROJEKT-FIN.md i repozytorium Spinacza: Kasa powstaje jako samodzielne repo `kasa/`, kontrakt odtworzony z briefingu w `CLAUDE.md`. |
 | K3 | 5.11 | [K] Brak API (EB, KSeF, Vertex): każdy dostawca ma interfejs + implementację `mock` na danych z `fixtures/`; prawdziwa implementacja dopisywana, gdy użytkownik poda klucze. |
 | K4 | 5.11 | [K] Faza „Szkielet” z tabeli faz nie istnieje w repo, więc budujemy ją jako pierwszą (briefing liczy fazy 0-1 jako research i kontrakt). |
+| K5 | 5.11 | [K] Kody strażników bazy: KS001 tylko INSERT (L0), KS002 zakaz DELETE/TRUNCATE na wszystkich półkach, KS003 decyzja człowieka nienaruszalna dla automatu, KS004 reguła poza `auto` nie pisze, KS005-KS007 spójność podmiotów, firm i obiektów kosztowych. |
+| K6 | 5.11 | [K] W L3 piszą tylko `human` i `rule`; wyjątki: kandydat na obiekt kosztowy i kandydat na regułę (status candidate) oraz systemowy UNASSIGNED (tworzony triggerem per firma). |
+| K7 | 5.11 | [K] `l3_match` może wskazywać wiersz arkusza PM (`internal_record_id`) zamiast faktury: BLIK dla hostessy ma dowód w dokumencie wewnętrznym. |
+| K8 | 5.11 | [K] Normalizacja numeru faktury usuwa też zera wiodące w segmentach liczbowych („FV 07/10/2026” = „FV 7/10/2026”). |
+| K9 | 5.11 | [K] Etap `dormant` reguły liczony jako stan pochodny (12 mies. bez trafienia), nie zapisywany automatem; do rozstrzygnięcia w fazie 4. |
