@@ -46,6 +46,28 @@ import_mappings:
       # Pole pod v2 (D9): ZUS i PIT od umów cywilnoprawnych w v1 idą do UNASSIGNED.
       settlement_type: {source: typ_rozliczenia}
 
+  # Eksport rejestru VAT z programu biura (CSV Windows-1250, separator ";", przecinek
+  # dziesiętny, daty DD.MM.RRRR). Kolumna "typ" niesie naraz kierunek i rodzaj
+  # ("sprzedaż", "zakup", "import usług", "korekta sprzedaży"); "kontrahent" i "NIP"
+  # to druga strona dokumentu (nabywca sprzedaży, sprzedawca zakupu).
+  document:
+    target: document
+    description: Eksport rejestru VAT z programu biura - numer, data, kontrahent, NIP, kwoty, typ
+    file_types: [csv, xlsx]
+    columns:
+      number_raw:        {source: numer, aliases: [numer dokumentu, nr dokumentu, numer faktury], required: true}
+      issue_date:        {source: data, aliases: [data wystawienia, data dokumentu], type: date, required: true}
+      sale_date:         {source: data sprzedaży, type: date}
+      due_date:          {source: termin płatności, type: date}
+      counterparty_name: {source: kontrahent, aliases: [nazwa kontrahenta]}
+      counterparty_nip:  {source: nip, aliases: [nip kontrahenta]}
+      net:               {source: netto, type: amount}
+      vat:               {source: vat, aliases: [kwota vat], type: amount}
+      gross:             {source: brutto, type: amount, required: true}
+      kind:              {source: typ, aliases: [rodzaj, typ dokumentu]}
+      currency:          {source: waluta}
+      ksef_number:       {source: numer ksef, aliases: [nr ksef]}
+
 # Dopisywane do listy bazowej rdzenia (zdrowie, związki, komornik, alimenty).
 sensitive_words:
   - związek zawodowy

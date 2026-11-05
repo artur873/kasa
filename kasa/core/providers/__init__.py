@@ -21,3 +21,11 @@ import os
 def provider_name(kind: str, default: str = "mock") -> str:
     """Resolve the configured provider for ``kind`` ('bank', 'ksef', 'llm')."""
     return os.environ.get(f"KASA_{kind.upper()}_PROVIDER", default).strip().lower() or default
+
+
+class ProviderNotConfigured(RuntimeError):
+    """The real provider lacks configuration (keys, session); the factory falls back to mock."""
+
+
+class ProviderError(RuntimeError):
+    """The provider answered with an error."""
