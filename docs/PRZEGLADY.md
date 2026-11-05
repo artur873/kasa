@@ -22,3 +22,19 @@ Drobne:
 13. Trigger KS003: przy UPDATE człowieka wymagać nowego `decision_id` lub `revoked_by_decision`.
 14. CHECK formatu numeru KSeF.
 15. Słowa wrażliwe: rdzenie/odmiana zamiast podciągów (3).
+
+## Faza 2 (5.11.2026)
+
+Blokujące (przekazane do fazy 3):
+1. `pseudonym.py` `_detect_persons`: nazwy produktów/ulic/firm brane za osoby; osoba tylko z dowodem (imię ze słownika, osoba z arkusza, kontrahent person, kontekst Pan/Pani/tel./PESEL).
+
+Ważne (faza w nawiasie):
+2. `bank/ingest.py`: ten sam `entry_reference`, ta sama wersja parsera, inna treść → dziś `unchanged`; powinna być nowa wersja po odcisku treści (przed pierwszym realnym pobraniem EB).
+3. Anonimizacja po retencji niszczy tylko klucz; jawne dane zostają w `title_raw`, `counterparty_*_raw`, `extracted.phones`, `l1_pdf_extraction`, `l1_internal_record.fields`, `seller_name` rachunków osób → `kasa_anonymize_persons` jako jedyna ścieżka UPDATE z logiem (5).
+4. Revolut: kod rozpoznaje operatora, ale nie wyciąga klienta z tytułu → `payer_hint` (3/4).
+5. Blokady kartowe: zastąpienie tylko przy tej samej kwocie; `superseded_by` miesza wersję faktu ze stanem → `resolved_by_transaction_id`, status `expired` (4).
+6. Kurs: bank bierze NBP z dnia operacji, przelew zagraniczny z dnia poprzedniego, faktura EUR bez `fx_rate_date` → jedna funkcja „ostatnia tabela A przed datą” (4).
+7. Odczyt regexowy mocka zapisany jako `method='model'` → `code` (3).
+8. `company.nip` ustawiany bez pochodzenia (3).
+
+Drobne: 9. identyfikator zbiorczy płatności B2B od 2027 (4); 10. depseudonimizacja tylko kodów z wejścia (3); 11. test: semantyka nie czyta wierszy sensitive (3).
