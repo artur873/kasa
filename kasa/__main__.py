@@ -7,6 +7,7 @@ import os
 import sys
 from collections.abc import Sequence
 
+from kasa.cli import register_all
 from kasa.core import migrate as migrations
 from kasa.core.checks import run_checks
 from kasa.core.companies import init_companies
@@ -87,6 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
     ext_sub = ext.add_subparsers(dest="extensions_command", required=True, metavar="akcja")
     ext_sub.add_parser("list", help="lista załadowanych rozszerzeń").set_defaults(handler=cmd_extensions_list)
     sub.add_parser("check", help="kontrola stanu bazy, migracji i rozszerzeń").set_defaults(handler=cmd_check)
+    register_all(sub)
     return parser
 
 
