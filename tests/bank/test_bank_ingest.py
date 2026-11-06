@@ -92,10 +92,10 @@ def test_a_new_parser_version_supersedes_every_fact(conn, ingested, provider, mo
 
 def test_sensitive_from_the_counterparty_name_with_the_list_of_the_semantics_gate(conn, company):
     """Review of 3/4B, point 13: the title AND the counterparty name, with the same list as the gate (database
-    terms included); the version of the parser is 3 (payer_hint, sensitive)."""
+    terms included); since the version of the parser 3 (payer_hint, sensitive)."""
     from kasa.core.sensitive import add_human_term
 
-    assert ingest_module.PARSER_SCHEMA_VERSION == 3
+    assert ingest_module.PARSER_SCHEMA_VERSION >= 3
     account = upsert_account(conn, company.id, AccountInfo(
         uid="s", iban="PL65116022020000000555123456", currency="PLN", kind="current", provider="test",
         bank_name="Bank Test"))
@@ -118,7 +118,7 @@ def test_sensitive_from_the_counterparty_name_with_the_list_of_the_semantics_gat
     assert flags["S1"][0] and "komornik" in flags["S1"][1]                 # only in the counterparty name
     assert flags["S2"][0] and "mediacja rodzinna" in flags["S2"][1]        # a term of the database (a person's)
     assert not flags["S3"][0] and flags["S3"][1] is None
-    assert {f[2] for f in flags.values()} == {3}
+    assert {f[2] for f in flags.values()} == {ingest_module.PARSER_SCHEMA_VERSION}
 
 
 def test_booked_operation_supersedes_its_card_hold(conn, company):
@@ -330,3 +330,141 @@ def test_mpp_check_turns_red_without_the_vat_leg(conn, company):
 def test_statement_parsers_reject_the_other_format(conn, company, fmt):
     with pytest.raises(ValueError):
         import_statement_file(conn, company, b"garbage", fmt=fmt)
+
+
+# ---------------------------------------------------------------------------
+# Real EnableBanking data (11.2026): unsigned balances, interim balances without a date, corrected content
+# ---------------------------------------------------------------------------
+
+
+def _test_account(conn, company, uid="t", iban="PL65116022020000000555123456"):
+    info = AccountInfo(uid=uid, iban=iban, currency="PLN", kind="current", provider="test", bank_name="Bank Test")
+    account = upsert_account(conn, company.id, info)
+    return AccountRow(account.id, account.iban, "PLN", "current", None)
+
+
+def _entry(account, ref, day, amount, after=None, title="op"):
+    return BankEntry(source="test", account_iban=account.iban, locator=ref, entry_reference=ref, status="booked",
+                     booking_date=day, amount_minor=amount, currency="PLN", balance_after_minor=after,
+                     title_lines=[title], bank_tx_code="RCDT/DMCT")
+
+
+def _itbd(account, day, amount):
+    return BankBalance(source="test", account_iban=account.iban, balance_type="ITBD", reference_date=day,
+                       amount_minor=amount, currency="PLN")
+
+
+def _store_itbd(conn, company, account, day, amount):
+    conn.execute(
+        """
+        INSERT INTO l1_bank_balance (company_id, account_id, balance_type, reference_date, amount_minor, currency,
+                                     source, method, created_by)
+        VALUES (%s, %s, 'ITBD', %s, %s, 'PLN', 'test', 'code', 'pytest')
+        """, (company.id, account.id, day, amount))
+
+
+def test_interim_balance_without_a_date_gets_the_day_of_the_request():
+    from kasa.core.bank import enablebanking as eb
+
+    payload = (b'{"balances":[{"name":"Interim booked balance","balance_amount":{"currency":"PLN","amount":"-109370.40"},'
+               b'"balance_type":"ITBD","reference_date":null},{"balance_amount":{"currency":"PLN","amount":"4629.60"},'
+               b'"balance_type":"ITAV","reference_date":null},{"balance_amount":{"currency":"PLN","amount":"1.00"},'
+               b'"balance_type":"CLBD","reference_date":null}]}')
+    assert eb.parse_balances(payload, "PL65116022020000000555123456") == []          # no date, no balance
+    parsed = eb.parse_balances(payload, "PL65116022020000000555123456", fetched_on=date(2026, 11, 6))
+    assert [(b.balance_type, b.reference_date, b.amount_minor) for b in parsed] == [
+        ("ITBD", date(2026, 11, 6), -10937040), ("ITAV", date(2026, 11, 6), 462960)]   # a closing needs its date
+
+
+def test_unsigned_balance_after_gets_its_sign_back(conn, company):
+    """mBank through EnableBanking: below zero the balance after an operation comes without its sign."""
+    account = _test_account(conn, company)
+    entries = [
+        _entry(account, "U1", date(2026, 10, 1), -5000, 3000),       # 80.00 -> 30.00
+        _entry(account, "U2", date(2026, 10, 2), -10000, 7000),      # 30.00 -> -70.00, sent as 70.00
+        _entry(account, "U3", date(2026, 10, 3), -2000, 9000),       # -> -90.00, sent as 90.00
+        _entry(account, "U4", date(2026, 10, 5), 12000, 3000),       # -> 30.00
+    ]
+    result = IngestResult(account.iban, "test")
+    store_entries(conn, company, account, entries, {}, result, balances=[_itbd(account, date(2026, 11, 6), 3000)])
+    rows = conn.execute("SELECT entry_reference, balance_after_minor, evidence -> 'extra' ->> 'balance_after_sign' "
+                        "FROM l1_bank_transaction WHERE account_id = %s ORDER BY entry_reference",
+                        (account.id,)).fetchall()
+    assert rows == [("U1", 3000, None), ("U2", -7000, "restored"), ("U3", -9000, "restored"), ("U4", 3000, None)]
+    assert not [w for w in result.warnings if "≠" in w]
+    [check] = check_balance_continuity(conn, company.id, date(2026, 10, 1), date(2026, 10, 31), record=False)
+    assert check.ok, check.detail
+    # without an anchor the chain is walked forward from the first balance as given
+    other = _test_account(conn, company, uid="t2", iban="PL38116022020000000555123457")
+    forward = [e.model_copy(update={"account_iban": other.iban}) for e in entries]
+    store_entries(conn, company, other, forward, {}, IngestResult(other.iban, "test"))
+    assert [r[0] for r in conn.execute("SELECT balance_after_minor FROM l1_bank_transaction WHERE account_id = %s "
+                                       "ORDER BY entry_reference", (other.id,))] == [3000, -7000, -9000, 3000]
+
+
+def test_interim_balance_closes_computed_balances_and_the_check(conn, company):
+    """Bank Millennium: no balance per operation and no dated balance - only ITBD at the moment of the request."""
+    account = _test_account(conn, company)
+    entries = [
+        _entry(account, "M1", date(2026, 10, 2), 10000),
+        _entry(account, "M2", date(2026, 10, 20), -4000),
+        _entry(account, "M3", date(2026, 11, 3), -1000),             # after the period, before the request
+    ]
+    result = IngestResult(account.iban, "test")
+    store_entries(conn, company, account, entries, {}, result,
+                  balances=[_itbd(account, date(2026, 11, 6), -20000)], date_from=date(2026, 10, 1),
+                  date_to=date(2026, 10, 31))
+    afters = [r[0] for r in conn.execute("SELECT balance_after_minor FROM l1_bank_transaction WHERE account_id = %s "
+                                         "AND balance_after_computed ORDER BY booking_date", (account.id,))]
+    assert afters == [-15000, -19000, -20000]
+    [red] = check_balance_continuity(conn, company.id, date(2026, 10, 1), date(2026, 10, 31), record=False)
+    assert not red.ok                                            # the interim balance is not stored yet
+    _store_itbd(conn, company, account, date(2026, 11, 6), -20000)
+    [green] = check_balance_continuity(conn, company.id, date(2026, 10, 1), date(2026, 10, 31), record=False)
+    assert green.ok and green.detail["booked_count"] == 2, green.detail
+    _store_itbd(conn, company, account, date(2026, 11, 7), -25000)  # a later request: the earliest one counts
+    [still] = check_balance_continuity(conn, company.id, date(2026, 10, 1), date(2026, 10, 31), record=False)
+    assert still.ok
+
+
+def test_changed_content_with_the_same_reference_is_a_new_version(conn, company):
+    """Review of phase 2, point 2: the same entry_reference, the same parser version, another content."""
+    account = _test_account(conn, company)
+    first = _entry(account, "C1", date(2026, 10, 7), -12300, title="FV 1/10/2026")
+    store_entries(conn, company, account, [first], {}, IngestResult(account.iban, "test"))
+    same = IngestResult(account.iban, "test")
+    store_entries(conn, company, account, [first], {}, same)
+    assert (same.inserted, same.unchanged, same.superseded) == (0, 1, 0)
+    corrected = first.model_copy(update={"title_lines": ["FV 1/10/2026 korekta tytulu"]})
+    again = IngestResult(account.iban, "test")
+    store_entries(conn, company, account, [corrected], {}, again)
+    assert (again.inserted, again.unchanged, again.superseded) == (0, 0, 1)
+    assert any("title" in w for w in again.warnings)
+    rows = conn.execute("SELECT title_raw, superseded_by IS NULL FROM l1_bank_transaction WHERE account_id = %s "
+                        "ORDER BY created_at, title_raw", (account.id,)).fetchall()
+    assert rows == [("FV 1/10/2026", False), ("FV 1/10/2026 korekta tytulu", True)]
+
+
+def test_balance_check_finds_the_order_of_a_transfer_and_its_return(conn, company):
+    """+X and -X on one day bring the balance back to a value it already had: two operations fit the running
+    balance and only one of them leads through the whole day."""
+    account = _test_account(conn, company)
+    day = date(2026, 9, 4)
+    entries = [                                                    # stored in an order that misleads a greedy walk
+        _entry(account, "R4", day, -500, 8500),
+        _entry(account, "R2", day, -1400, 7600),
+        _entry(account, "R3", day, 1400, 9000),
+        _entry(account, "R1", day, 1400, 9000),
+        _entry(account, "R0", day, -1400, 7600),
+    ]
+    store_entries(conn, company, account, entries, {}, IngestResult(account.iban, "test"),
+                  balances=[BankBalance(source="test", account_iban=account.iban, balance_type="OPBD",
+                                        reference_date=day, amount_minor=9000, currency="PLN")])
+    conn.execute(
+        """
+        INSERT INTO l1_bank_balance (company_id, account_id, balance_type, reference_date, amount_minor, currency,
+                                     source, method, created_by)
+        VALUES (%s, %s, 'OPBD', %s, 9000, 'PLN', 'test', 'code', 'pytest')
+        """, (company.id, account.id, day))
+    [check] = check_balance_continuity(conn, company.id, day, day, record=False)
+    assert check.ok and check.detail["closing_minor"] == 8500, check.detail

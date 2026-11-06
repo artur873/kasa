@@ -86,11 +86,30 @@ ostrzeżenie w wyniku pobrania). Gdy nie (Millennium, camt.053, MT940), liczymy 
 kolejności księgowania, a bez salda otwarcia - wstecz od salda zamknięcia, i oznaczamy
 `balance_after_computed = true`.
 
+**Co pokazało pierwsze prawdziwe pobranie (6.11.2026, wersja parsera 4):**
+
+* **mBank podaje saldo po operacji bez znaku.** Rachunek poniżej zera ma w EB `47371.45` zamiast `-47371.45`.
+  Kasa przywraca znak z ciągłości sald: z dwóch znaków wybiera ten, przy którym saldo przed operacją
+  (po - kwota) jest saldem po innej operacji; gdy pasują oba (albo żaden), ten, który ciągnie łańcuch wstecz
+  od salda bieżącego (bez niego - w przód od pierwszego salda). Przywrócony znak: `evidence.extra.balance_after_sign
+  = "restored"`; wynik pobrania mówi, w ilu operacjach.
+* **Banki dają tylko saldo bieżące bez daty** (`ITBD` zaksięgowane, `ITAV` dostępne, `reference_date = null`).
+  Kasa zapisuje je z datą dnia pobrania (to saldo po wszystkich operacjach zaksięgowanych do chwili zapytania).
+  Gdy bank nie daje żadnego salda z datą (OPBD/CLBD/PRCD), operacje są pobierane aż do dnia pobrania, a salda
+  po operacjach (Millennium) liczone wstecz od `ITBD`.
+* **Banki nie trzymają się zakresu dat** (mBank oddał 12 miesięcy przy prośbie o październik, Millennium -
+  3 miesiące). Kasa zapisuje wszystko, co przyszło: fakty są idempotentne, a kontrole liczą się per okres.
+* **Rachunków VAT nie ma w zgodzie PSD2** (ani mBank, ani Millennium nie dają ich wybrać). Ruchy na rachunkach
+  VAT trzeba wczytywać z wyciągów: `bank import-mt940 <plik> --company odm --kind vat` (albo `import-camt`);
+  bez nich kontrola MPP jest czerwona.
+
 **Idempotencja i wersje.** Ten sam zakres pobrany ponownie: te same bajty → ten sam `l0_raw`; ta sama
-operacja (po `entry_reference`, a bez niego po `fingerprint`) → bez zmian. Podbicie
+operacja (po `entry_reference`, a bez niego po `fingerprint`) → bez zmian, chyba że bank zmienił jej treść
+(status, daty, kwota, tytuł, nadawca, saldo po operacji z banku - porównanie tylko w obrębie tego samego źródła):
+wtedy nowa wersja faktu i ostrzeżenie z listą zmienionych pól. Podbicie
 `kasa.core.bank.ingest.PARSER_SCHEMA_VERSION` (zmiana parsera lub ekstrakcji; 2 - telefony w
-`extracted` tylko jako pseudonimy; obecnie 3 - `payer_hint` i `sensitive` z tytułu oraz nazwy kontrahenta listą
-bramki semantyki) → przy następnym pobraniu każda
+`extracted` tylko jako pseudonimy; 3 - `payer_hint` i `sensitive` z tytułu oraz nazwy kontrahenta listą
+bramki semantyki; obecnie 4 - znak salda po operacji i `ITBD` z dnia pobrania) → przy następnym pobraniu każda
 operacja dostaje nowy wiersz z nowym `schema_version`, a stary wskazuje go przez `superseded_by`. Te same
 operacje z EB i z camt.053 (ten sam `NtryRef`) to jeden fakt.
 
@@ -254,6 +273,13 @@ wyciągu oraz w `python -m kasa check` (wszystkie firmy i miesiące z operacjami
 ## 10. Ograniczenia (świadome)
 
 * Jedna sesja EB na proces (`KASA_EB_SESSION_ID`); dwa banki = dwie sesje → dwa uruchomienia.
+* Kontrola ciągłości odtwarza kolejność operacji w dniu z samych sald (z nawrotami - para przelew i zwrot +X/-X
+  wraca do tego samego salda), ale nie przenosi operacji między dniami. W danych mBanku za 11.2025-11.2026 są
+  dwa takie miejsca po stronie banku: operacja z 5.01.2026 wliczona w saldo przed operacją z 3.01.2026 oraz
+  saldo 0,00 zamiast -193,95 przy przejściu pod zero 27.07.2026 - kontrola pokazuje je jako przerwy w łańcuchu,
+  salda miesięcy się zgadzają.
+* Kontrola dla banku bez sald po operacjach i bez sald z datą (Millennium) opiera się na jednym saldzie bieżącym
+  (`ITBD`): potwierdza rachunek, nie niezależnie każdy dzień. Mocniejsza byłaby z wyciągiem MT940 za miesiąc.
 * Zaksięgowanie zastępuje blokadę tylko przy tej samej kwocie (± 3 dni, ta sama nazwa); blokada zwolniona bez
   zaksięgowania zostaje `pending`.
 * Heurystyka nazwisk woli nadmiar niż brak: rzadkie nazwy własne z wielkiej litery mogą dostać kod osoby.

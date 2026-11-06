@@ -363,13 +363,23 @@ def record_truth_check(conn: psycopg.Connection, result: TruthCheck) -> None:
     )
 
 
+DAY_CHAIN_SEARCH_LIMIT = 200_000
+
+
 def _day_chain(opening: int, rows: list[tuple]) -> tuple[int, list[dict[str, Any]], int]:
     """Walk one day's booked operations from the opening balance through their balances after.
 
     The order inside a day is rebuilt from the balances themselves (the next operation
     is the one whose balance before equals the running balance), so the check does not
-    depend on the order rows were stored in. Returns (closing, problems, bank balances checked).
+    depend on the order rows were stored in. When the balance comes back to a value it
+    already had (a transfer and its return: +X, -X), two operations fit; the walk then
+    goes back and tries the other one (a bounded search), so a valid order is found
+    whenever there is one. Returns (closing, problems, bank balances checked).
     """
+    ordered = _day_order(opening, rows)
+    if ordered is not None:
+        checked = sum(1 for r in ordered if r[3] is not None and not r[4])
+        return opening + sum(r[2] for r in rows), [], checked
     remaining = list(rows)
     running = opening
     problems: list[dict[str, Any]] = []
@@ -391,12 +401,53 @@ def _day_chain(opening: int, rows: list[tuple]) -> tuple[int, list[dict[str, Any
     return running, problems, checked
 
 
+def _day_order(opening: int, rows: list[tuple]) -> list[tuple] | None:
+    """An order of the day's operations in which every balance after = the previous balance + the amount
+    (operations without a balance fit anywhere), or None when there is none within the search limit."""
+    budget = [DAY_CHAIN_SEARCH_LIMIT]
+    remaining = list(rows)
+    path: list[tuple] = []
+
+    def walk(running: int) -> bool:
+        if not remaining:
+            return True
+        budget[0] -= 1
+        if budget[0] < 0:
+            return False
+        fitting = [r for r in remaining if r[3] is not None and r[3] - r[2] == running]
+        if not fitting:
+            fitting = [r for r in remaining if r[3] is None][:1]
+        tried: set[tuple[int, int | None]] = set()
+        for row in fitting:
+            key = (row[2], row[3])               # identical operations are interchangeable
+            if key in tried:
+                continue
+            tried.add(key)
+            remaining.remove(row)
+            path.append(row)
+            if walk(running + row[2]):
+                return True
+            path.pop()
+            remaining.append(row)
+        return False
+
+    import sys
+    limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(max(limit, len(rows) * 2 + 100))
+    try:
+        return list(path) if walk(opening) else None
+    finally:
+        sys.setrecursionlimit(limit)
+
+
 def check_balance_continuity(conn: psycopg.Connection, company_id: Any, period_start: date, period_end: date, *,
                              record: bool = True) -> list[TruthCheck]:
     """Truth check 1, per account and day, to the grosz: opening + booked operations = closing.
 
     Opening: the bank's opening balance (OPBD) of the first day, else its closing
-    balance (CLBD) of the day before, else derived from the first balance after given
+    balance (CLBD) of the day before, else the last closing balance before the period
+    carried forward, else the first closing or interim booked balance (CLBD/PRCD/ITBD)
+    after the period carried back, else derived from the first balance after given
     by the bank. Each day is checked against the balances after operations (given by
     the bank or computed) and against every reported OPBD/CLBD; the period closing
     against the bank's CLBD. Without any independent balance the check is red.
@@ -411,7 +462,7 @@ def check_balance_continuity(conn: psycopg.Connection, company_id: Any, period_s
         snapshots = conn.execute(
             """
             SELECT balance_type, reference_date, amount_minor, source FROM l1_bank_balance
-             WHERE account_id = %s AND superseded_by IS NULL AND balance_type IN ('OPBD', 'PRCD', 'CLBD')
+             WHERE account_id = %s AND superseded_by IS NULL AND balance_type IN ('OPBD', 'PRCD', 'CLBD', 'ITBD')
                AND reference_date BETWEEN %s AND %s
             """,
             (account_id, period_start - timedelta(days=1), period_end + timedelta(days=1)),
@@ -438,12 +489,17 @@ def check_balance_continuity(conn: psycopg.Connection, company_id: Any, period_s
         # OPBD = balance at the start of its day; CLBD and PRCD (previous closing) = at its end
         opening_at = {d: a for t, d, a, _s in snapshots if t == "OPBD"}
         closing_at = {d: a for t, d, a, _s in snapshots if t in ("CLBD", "PRCD")}
+        # ITBD = the booked balance at the moment of the request: after every operation booked that day so far
+        for t, d, a, _s in snapshots:
+            if t == "ITBD":
+                closing_at.setdefault(d, a)
         by_day: dict[date, list[tuple]] = {}
         for row in rows:
             by_day.setdefault(row[5], []).append(row)
 
         opening = opening_at.get(period_start)
         opening_source = "OPBD"
+        later_reference = False
         if opening is None and (period_start - timedelta(days=1)) in closing_at:
             opening, opening_source = closing_at[period_start - timedelta(days=1)], "CLBD of the day before"
         if opening is None:
@@ -464,6 +520,26 @@ def check_balance_continuity(conn: psycopg.Connection, company_id: Any, period_s
             if earlier is not None:
                 opening = int(earlier[1])
                 opening_source = f"CLBD/PRCD of {earlier[0].isoformat()} + operations until the period"
+        if opening is None:
+            # the first closing (or interim booked) balance after the period, carried back by the operations in
+            # between - for banks that give no balance per operation and no dated balance (Bank Millennium)
+            later = conn.execute(
+                """
+                SELECT b.balance_type, b.reference_date, b.amount_minor - coalesce((
+                       SELECT sum(t.amount_minor) FROM l1_bank_transaction t
+                        WHERE t.account_id = b.account_id AND t.superseded_by IS NULL AND t.status = 'booked'
+                          AND t.booking_date >= %s AND t.booking_date <= b.reference_date), 0)
+                  FROM l1_bank_balance b
+                 WHERE b.account_id = %s AND b.superseded_by IS NULL AND b.balance_type IN ('CLBD', 'PRCD', 'ITBD')
+                   AND b.reference_date >= %s
+                 ORDER BY b.reference_date, b.balance_type LIMIT 1
+                """,
+                (period_start, account_id, period_end),
+            ).fetchone()
+            if later is not None:
+                opening = int(later[2])
+                opening_source = f"{later[0]} of {later[1].isoformat()} minus operations back to the period"
+                later_reference = True
         if opening is None and rows:
             first_day = by_day[min(by_day)]
             afters = {r[3] for r in first_day if r[3] is not None}
@@ -483,7 +559,7 @@ def check_balance_continuity(conn: psycopg.Connection, company_id: Any, period_s
             continue
 
         mismatches: list[dict[str, Any]] = []
-        references = 0
+        references = 1 if later_reference else 0      # the bank's balance after the period anchors the opening
         running = opening
         day = period_start
         while day <= period_end:

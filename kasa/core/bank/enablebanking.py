@@ -112,12 +112,23 @@ def parse_transaction(tx: dict[str, Any], account_iban: str, account_currency: s
     )
 
 
-def parse_balances(payload: bytes, account_iban: str) -> list[BankBalance]:
+# Interim balances (ITBD booked, ITAV available) describe the account at the moment of the request; some banks
+# (Bank Millennium, mBank through EnableBanking, 11.2026) send them without a reference date.
+INTERIM_TYPES = ("ITBD", "ITAV")
+
+
+def parse_balances(payload: bytes, account_iban: str, fetched_on: date | None = None) -> list[BankBalance]:
+    """Balances of one /balances response. An interim balance without a reference date gets ``fetched_on``
+    (the day of the request) - it is the balance after every operation booked until then."""
     data = json.loads(payload)
     balances = []
     for index, node in enumerate(data.get("balances", [])):
         amount = _amount(node.get("balance_amount"))
         reference = _date(node.get("reference_date"))
+        balance_type = str(node.get("balance_type") or "XPCD").upper()
+        locator = f"balances[{index}]"
+        if reference is None and fetched_on is not None and balance_type in INTERIM_TYPES:
+            reference, locator = fetched_on, f"{locator}(reference_date=fetched_on)"
         if amount is None or reference is None:
             continue
         value = amount[0]
@@ -127,13 +138,13 @@ def parse_balances(payload: bytes, account_iban: str) -> list[BankBalance]:
         balances.append(BankBalance(
             source=SOURCE,
             account_iban=account_iban,
-            balance_type=str(node.get("balance_type") or "XPCD").upper(),
+            balance_type=balance_type,
             reference_date=reference,
             amount_minor=to_minor(value, amount[1]),
             currency=amount[1],
             name=node.get("name"),
             last_change_at=datetime.fromisoformat(changed) if changed else None,
             last_committed_transaction=node.get("last_committed_transaction"),
-            locator=f"balances[{index}]",
+            locator=locator,
         ))
     return balances

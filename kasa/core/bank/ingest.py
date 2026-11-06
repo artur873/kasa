@@ -62,7 +62,10 @@ log = logging.getLogger(__name__)
 # 2: extracted.phones keeps only the pseudonym (no plain number in the facts).
 # 3: extracted.payer_hint (a company with its legal form in the title of an operator's payment); `sensitive`
 #    from the title AND the counterparty name with the list of the semantics gate (database terms too).
-PARSER_SCHEMA_VERSION = 3
+# 4: the balance after an operation from the bank gets its sign back when the bank sends it without one (mBank
+#    through EnableBanking on an account below zero); an interim booked balance (ITBD) of the day of the request
+#    anchors the computed balances when the bank gives no dated balance (Bank Millennium).
+PARSER_SCHEMA_VERSION = 4
 CREATED_BY = "kasa.bank"
 MPP_GROUP_NAMESPACE = uuid.UUID("6b617361-6d70-7000-8000-000000000001")
 MPP_DATE_TOLERANCE = timedelta(days=1)
@@ -275,6 +278,7 @@ def _fill_balances(entries: list[BankEntry], balances: Sequence[BankBalance], da
         return
     first_day = min(e.booking_date for e in booked)
     last_day = max(e.booking_date for e in booked)
+    _restore_balance_signs(booked, _closing_anchor(balances, last_day, None), warnings)
     # OPBD = at the start of its day; PRCD/CLBD = at the end of its day
     starts = {first_day, date_from} - {None}
     opening = next((b.amount_minor for b in balances if b.balance_type == "OPBD" and b.reference_date in starts),
@@ -300,17 +304,79 @@ def _fill_balances(entries: list[BankEntry], balances: Sequence[BankBalance], da
                 entry.balance_after_minor = running
                 entry.balance_after_computed = True
         return
-    closing = [b for b in balances if b.balance_type in ("CLBD", "CLAV") and b.reference_date >= last_day
-               and (date_to is None or b.reference_date <= date_to)]
-    if not closing:
+    running = _closing_anchor(balances, last_day, date_to)
+    if running is None:
         warnings.append(f"{booked[0].account_iban}: brak salda otwarcia i zamknięcia - saldo po operacji nieznane")
         return
-    running = min(closing, key=lambda b: b.reference_date).amount_minor
     for entry in reversed(booked):
         if entry.balance_after_minor is None:
             entry.balance_after_minor = running
             entry.balance_after_computed = True
         running = entry.balance_after_minor - entry.amount_minor
+
+
+def _closing_anchor(balances: Sequence[BankBalance], last_day: date, date_to: date | None) -> int | None:
+    """Balance after the last booked operation: the bank's closing balance (CLBD/CLAV) on or after the last booking
+    day (within the range), else its interim booked balance (ITBD) of the day of the request, which covers every
+    operation booked until then (the fetch reaches that day when the bank gives no dated balance)."""
+    closing = [b for b in balances if b.balance_type in ("CLBD", "CLAV") and b.reference_date >= last_day
+               and (date_to is None or b.reference_date <= date_to)]
+    if closing:
+        return min(closing, key=lambda b: b.reference_date).amount_minor
+    interim = [b for b in balances if b.balance_type == "ITBD" and b.reference_date >= last_day]
+    if interim:
+        return max(interim, key=lambda b: b.reference_date).amount_minor
+    return None
+
+
+def _restore_balance_signs(booked: Sequence[BankEntry], anchor: int | None, warnings: list[str]) -> None:
+    """mBank through EnableBanking sends the balance after an operation without its sign: below zero the account
+    shows ``47371.45`` where the balance is ``-47371.45``. Of the two signs, the bank's is the one that links the
+    operation to the chain of balances, whatever the order of the operations within a day:
+
+    1. the balance before the operation (after - amount) is the balance after another operation - with exactly one
+       of the two signs (the absolute values are compared, the other operation's sign is not known yet);
+    2. otherwise (the first operation, or both signs link) the sign that continues the chain walked back from the
+       anchor (the closing or interim booked balance after the last operation), or forward from the first balance
+       as given when there is no anchor.
+
+    A restored sign is noted in ``extra.balance_after_sign`` of the entry."""
+    given = [e for e in booked if e.balance_after_minor is not None and not e.balance_after_computed]
+    if not given:
+        return
+    magnitudes = Counter(abs(e.balance_after_minor) for e in given)
+    decided: dict[int, int] = {}
+    for entry in given:
+        value = entry.balance_after_minor
+        if value == 0:
+            decided[id(entry)] = 0
+            continue
+        links = [sign for sign in (1, -1) if magnitudes[abs(sign * abs(value) - entry.amount_minor)]
+                 - (1 if abs(sign * abs(value) - entry.amount_minor) == abs(value) else 0) > 0]
+        if len(links) == 1:
+            decided[id(entry)] = links[0] * abs(value)
+
+    expected: int | None = anchor
+    backward = anchor is not None
+    restored = 0
+    for entry in (reversed(booked) if backward else iter(booked)):
+        value = entry.balance_after_minor
+        if value is None or entry.balance_after_computed:
+            if expected is not None:
+                expected = expected - entry.amount_minor if backward else expected + entry.amount_minor
+            continue
+        chosen = decided.get(id(entry))
+        if chosen is None:
+            target = expected if backward else (None if expected is None else expected + entry.amount_minor)
+            chosen = value if target is None else min((value, -value), key=lambda v: abs(v - target))
+        if chosen != value:
+            entry.balance_after_minor = chosen
+            entry.extra = {**entry.extra, "balance_after_sign": "restored"}
+            restored += 1
+        expected = chosen - entry.amount_minor if backward else chosen
+    if restored:
+        warnings.append(f"{booked[0].account_iban}: saldo po operacji bez znaku w {restored} operacjach - znak "
+                        f"przywrócony z ciągłości sald")
 
 
 # ---------------------------------------------------------------------------
@@ -388,7 +454,10 @@ def _find_existing(conn: psycopg.Connection, account_id: UUID, entry: BankEntry,
         where, value = "fingerprint = %s", fp
     return conn.execute(
         f"""
-        SELECT t.id, t.schema_version, t.superseded_by, s.status::text
+        SELECT t.id, t.schema_version, t.superseded_by, s.status::text,
+               t.status::text, t.booking_date, t.value_date, t.transaction_date, t.amount_minor, t.currency,
+               t.title_raw, t.counterparty_name_raw, t.counterparty_iban_raw, t.balance_after_minor,
+               t.balance_after_computed, t.source
           FROM l1_bank_transaction t
           LEFT JOIN l1_bank_transaction s ON s.id = t.superseded_by
          WHERE t.account_id = %s AND t.{where}
@@ -397,6 +466,27 @@ def _find_existing(conn: psycopg.Connection, account_id: UUID, entry: BankEntry,
         """,
         (account_id, value),
     ).fetchone()
+
+
+def _content_changed(existing: tuple, entry: BankEntry) -> list[str]:
+    """Fields of the bank's content that differ from the stored fact (the same identity, the same parser version):
+    the bank corrected the operation, so it gets a new version. Only the same source is compared: the same
+    operation from another channel (camt.053 after EnableBanking) is the same fact, told with other fields. A
+    computed balance after is ours, not the bank's, and does not count."""
+    (_id, _version, _superseded, _successor, status, booking, value, tx_date, amount, currency, title, name, iban,
+     balance, balance_computed, source) = existing
+    if source != entry.source:
+        return []
+    pairs = {
+        "status": (status, entry.status), "booking_date": (booking, entry.booking_date),
+        "value_date": (value, entry.value_date), "transaction_date": (tx_date, entry.transaction_date),
+        "amount_minor": (amount, entry.amount_minor), "currency": ((currency or "").strip(), entry.currency),
+        "title": (title, entry.title or None), "counterparty_name": (name, entry.counterparty_name),
+        "counterparty_iban": (iban, entry.counterparty_iban),
+    }
+    if not balance_computed and not entry.balance_after_computed:
+        pairs["balance_after_minor"] = (balance, entry.balance_after_minor)
+    return [field for field, (old, new) in pairs.items() if old != new]
 
 
 def _resolve_pending(conn: psycopg.Connection, account_id: UUID, booked_id: UUID, entry: BankEntry) -> bool:
@@ -483,13 +573,17 @@ def store_entries(
             result.pending += 1
         existing = _find_existing(conn, account.id, entry, item.fingerprint)
         if existing is not None:
-            existing_id, existing_version, superseded_by, successor_status = existing
+            existing_id, existing_version, superseded_by, successor_status = existing[:4]
             if superseded_by is not None and successor_status == "booked" and entry.status == "pending":
                 result.unchanged += 1          # the hold was already replaced by its booking
                 continue
             if superseded_by is None and existing_version >= PARSER_SCHEMA_VERSION:
-                result.unchanged += 1
-                continue
+                changed = _content_changed(existing, entry)
+                if not changed:
+                    result.unchanged += 1
+                    continue
+                result.warnings.append(f"{entry.entry_reference or entry.locator}: bank zmienił treść operacji "
+                                       f"({', '.join(changed)}) - nowa wersja faktu")
             if superseded_by is not None:
                 existing = None                # only an old version remains; write a fresh current row
         new_id = _insert_transaction(conn, company, account, item, context, words)
@@ -661,29 +755,38 @@ def glue_mpp(conn: psycopg.Connection, company_id: UUID, date_from: date | None 
 
 
 def ingest_account(conn: psycopg.Connection, company: Company, provider: BankProvider, account: AccountInfo,
-                   date_from: date, date_to: date, *, context: PseudonymContext | None = None) -> IngestResult:
-    """Fetch, store raw, parse and write one account for [date_from, date_to]."""
+                   date_from: date, date_to: date, *, context: PseudonymContext | None = None,
+                   today: date | None = None) -> IngestResult:
+    """Fetch, store raw, parse and write one account for [date_from, date_to].
+
+    When the bank gives no dated balance (only the interim one of the moment of the request), the operations are
+    fetched up to the day of the request, so that the interim balance closes the chain of computed balances.
+    Whatever the bank returns beyond the range (banks do not always respect it) is stored as well: the facts are
+    idempotent and the truth checks work per period."""
     if date_to < date_from:
         raise ValueError("date_to przed date_from")
+    today = today or date.today()
     row = upsert_account(conn, company.id, account)
     conn.execute("SELECT kasa_own_counterparty(%s, %s, NULL)", (company.id, account.owner_name))
     result = IngestResult(account_iban=row.iban, source=account.provider)
 
     balance_batch = provider.fetch_balances(account)
     balance_raw = _store_batch(conn, company.id, balance_batch, result)
-    balances = eb.parse_balances(balance_batch.payload, row.iban)
+    balances = eb.parse_balances(balance_batch.payload, row.iban, fetched_on=today)
     result.balances_stored += store_balances(conn, company.id, row, balances, balance_raw.id)
+    dated = any(b.balance_type in ("OPBD", "CLBD", "PRCD") for b in balances)
+    fetch_to = date_to if dated else max(date_to, today)
 
     entries: list[BankEntry] = []
     raws: dict[int, tuple[RawRecord, dict[str, Any]]] = {}
-    for batch_no, batch in enumerate(provider.fetch_transactions(account, date_from, date_to)):
+    for batch_no, batch in enumerate(provider.fetch_transactions(account, date_from, fetch_to)):
         raw = _store_batch(conn, company.id, batch, result)
         parsed = eb.parse_transactions(batch.payload, row.iban, row.currency, locator_prefix=f"batch[{batch_no}].")
         for entry in parsed:
             raws[id(entry)] = (raw, batch.meta())
         entries.extend(parsed)
     store_entries(conn, company, row, entries, raws, result, balances=balances, date_from=date_from,
-                  date_to=date_to, context=context)
+                  date_to=fetch_to, context=context)
     result.mpp_legs_grouped = glue_mpp(conn, company.id, date_from, date_to)
     for warning in result.warnings:
         log.warning("%s", warning)

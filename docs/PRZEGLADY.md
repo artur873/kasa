@@ -29,7 +29,7 @@ Blokujące (przekazane do fazy 3):
 1. `pseudonym.py` `_detect_persons`: nazwy produktów/ulic/firm brane za osoby; osoba tylko z dowodem (imię ze słownika, osoba z arkusza, kontrahent person, kontekst Pan/Pani/tel./PESEL).
 
 Ważne (faza w nawiasie):
-2. `bank/ingest.py`: ten sam `entry_reference`, ta sama wersja parsera, inna treść → dziś `unchanged`; powinna być nowa wersja po odcisku treści (przed pierwszym realnym pobraniem EB).
+2. `bank/ingest.py`: ten sam `entry_reference`, ta sama wersja parsera, inna treść → dziś `unchanged`; powinna być nowa wersja po odcisku treści (przed pierwszym realnym pobraniem EB). **Zrobione 6.11.2026:** porównanie pól treści w obrębie tego samego źródła → nowa wersja faktu (`_content_changed`).
 3. Anonimizacja po retencji niszczy tylko klucz; jawne dane zostają w `title_raw`, `counterparty_*_raw`, `extracted.phones`, `l1_pdf_extraction`, `l1_internal_record.fields`, `seller_name` rachunków osób → `kasa_anonymize_persons` jako jedyna ścieżka UPDATE z logiem (5).
 4. Revolut: kod rozpoznaje operatora, ale nie wyciąga klienta z tytułu → `payer_hint` (3/4).
 5. Blokady kartowe: zastąpienie tylko przy tej samej kwocie; `superseded_by` miesza wersję faktu ze stanem → `resolved_by_transaction_id`, status `expired` (4).
