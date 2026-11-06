@@ -1,0 +1,18 @@
+[Unit]
+Description=Kasa: pobranie operacji z EnableBanking i kontrole prawdy
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=kasa
+Group=kasa
+EnvironmentFile=/etc/kasa/kasa.env
+Environment=KASA_DIR=/opt/kasa
+WorkingDirectory=/opt/kasa
+ExecStart=/opt/kasa/deploy/kasa-bank.sh
+TimeoutStartSec=30min
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/kasa
+PrivateTmp=true

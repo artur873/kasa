@@ -29,6 +29,12 @@ wyniku metryk). Otwarte znaleziska: `docs/PRZEGLADY.md`.
   ciągłość sald zielona dla wszystkich miesięcy poza 01.2026 i 07.2026 mBanku (anomalie banku, `docs/BANK.md` rozdz. 10).
   Do Supabase jeszcze nic nie zapisano (brak połączenia z kontenera).
 
+## Serwer użytkownika (od 6.11.2026)
+- Kasa ma działać na serwerze użytkownika (Ubuntu/Debian, systemd): zestaw w `deploy/` (`install.sh`,
+  `kasa-bank.sh` + `kasa-bank.timer` 3× dziennie, `kasa` - polecenie z sekretami, `README.md` - pierwsze uruchomienie).
+  Z kontenera Claude Code nie ma dostępu do serwera (SSH i Postgres to surowy TCP - proxy przepuszcza tylko HTTPS).
+- Wyciąg MT940 z rachunku VAT mBanku użytkownik będzie wgrywał ręcznie co miesiąc (`bank import-mt940 --kind vat`).
+
 ## Supabase - porządki 6.11.2026
 - Migracja kasy 0015 (`definer_grants`) jest w repo i w bazie (15 migracji).
 - Usunięte stare dane finansowe (migracja Supabase `usun_stare_dane_finansowe`): faktury, eventy, operacje i

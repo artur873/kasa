@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Polecenie kasy na serwerze z sekretami z /etc/kasa/kasa.env, jako użytkownik kasa:
+#   sudo /opt/kasa/deploy/kasa run bank accounts --company odm
+#   sudo /opt/kasa/deploy/kasa run bank import-mt940 /tmp/vat.mt940 --company odm --kind vat
+# Dla EnableBanking podaj bank: sudo /opt/kasa/deploy/kasa run --bank mbank bank consent
+set -euo pipefail
+[[ "${1:-}" == "run" ]] || { sed -n '2,5p' "$0"; exit 2; }
+shift
+bank=""
+if [[ "${1:-}" == "--bank" ]]; then bank="$2"; shift 2; fi
+exec sudo -u kasa -H bash -c '
+    set -a; . /etc/kasa/kasa.env; set +a
+    if [[ -n "$0" ]]; then
+        for pair in $KASA_EB_SESSIONS; do [[ "${pair%%=*}" == "$0" ]] && export KASA_EB_SESSION_ID="${pair#*=}"; done
+        [[ -n "${KASA_EB_SESSION_ID:-}" ]] || { echo "Nie ma banku $0 w KASA_EB_SESSIONS" >&2; exit 2; }
+    fi
+    cd /opt/kasa && exec .venv/bin/python -m kasa "$@"' "$bank" "$@"

@@ -1,0 +1,10 @@
+[Unit]
+Description=Kasa: pobranie operacji 3x dziennie
+
+[Timer]
+OnCalendar=*-*-* 06:47,12:47,18:47 Europe/Warsaw
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target
