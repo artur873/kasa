@@ -21,9 +21,10 @@ wyniku metryk). Otwarte znaleziska: `docs/PRZEGLADY.md`.
   rachunek bieżący PL13 1140 2004 0000 3902 8248 2991; Bank Millennium - tryb `business`, Konto Biznes DE MINIMIS
   PL48 1160 2202 0000 0006 2200 2061. Identyfikatory sesji są w n8n i w env, nie w repo.
 - Jedna sesja na proces: ingest uruchamiany osobno dla każdego banku z jego `KASA_EB_SESSION_ID`.
-- Rachunków VAT nie da się wybrać w zgodzie PSD2 (ani mBank, ani Millennium) → kontrola MPP czerwona, dopóki
-  nie wczytamy wyciągów z rachunków VAT (`bank import-mt940 --kind vat`). Stary import miał trzeci rachunek
-  mBanku PL49 1140 2004 0000 3503 0090 4100 - prawdopodobnie VAT.
+- Rachunków VAT nie da się wybrać w zgodzie PSD2 (ani mBank, ani Millennium). Rachunek VAT mBanku
+  PL49 1140 2004 0000 3503 0090 4100 wczytywany z MT940 (`bank import-mt940 --kind vat`; użytkownik przysłał
+  wyciąg 5.11.2025-5.11.2026, plik nie jest w repo). Millennium: rachunek VAT bez historii - pomijamy.
+  Na pełnych danych MPP zgodne co do grosza 12.2025-10.2026. Potrzebny comiesięczny wyciąg VAT z mBanku.
 - Pobranie próbne (lokalna baza, 6.11): mBank 4410 operacji 11.2025-11.2026, Millennium 1666 operacji 08-10.2026;
   ciągłość sald zielona dla wszystkich miesięcy poza 01.2026 i 07.2026 mBanku (anomalie banku, `docs/BANK.md` rozdz. 10).
   Do Supabase jeszcze nic nie zapisano (brak połączenia z kontenera).
@@ -34,8 +35,7 @@ wyniku metryk). Otwarte znaleziska: `docs/PRZEGLADY.md`.
   rachunki bankowe, wyciągi, rozliczenia, zrzut Airtable, kolejka plików i funkcje importu. Zostały: kasa, poczta
   (`glos`, `rdzen.wiadomosci/kopie/zalaczniki`, `surowe.gmail`, `meta.skrzynki/przebiegi/blokada`), `ruch`/`przebiegi`,
   `zadania`, `rdzen.kontrahenci` + aliasy.
-- Do zrobienia przez użytkownika w panelu: pliki w Storage `finanse-pliki` (788) i funkcje Edge `finanse-lustro`,
-  `pliki-pobierz` (konektor ich nie usuwa).
+- Bucket `finanse-pliki` i funkcje Edge `finanse-lustro`, `pliki-pobierz` usunięte przez użytkownika (sprawdzone 6.11).
 
 ## Dalej (kolejność z briefingu)
 KSeF (token tylko do odczytu, KASA_KSEF_NIP/TOKEN, domena ksef.mf.gov.pl) → eksport biura i JPK → Vertex AI
@@ -59,7 +59,8 @@ Do tego czasu KASA_KSEF_PROVIDER i KASA_LLM_PROVIDER = mock.
   danych kasy; kasa łączy się rolą `postgres` (bypassrls), więc dla niej nic się nie zmienia.
 - Kontener Claude Code NIE dosięga bazy bezpośrednio: od 6.11 `KASA_DATABASE_URL` jest ustawiony (Session pooler,
   port 5432, użytkownik `postgres.wxdpjdymlbgnjdqkvrnd`) i DNS poolera działa, ale połączenie TCP na 5432 kończy się
-  timeoutem (sieć środowiska przepuszcza tylko HTTPS). Do tego czasu zapytania do Supabase idą przez
+  timeoutem: proxy środowiska obsługuje tylko HTTPS, surowego TCP baz danych nie przepuszcza (nie da się tego
+  dopuścić listą domen). Kasa do Supabase pisze więc z innej maszyny (Mac, serwer) albo zapytania do Supabase idą przez
   konektor (`execute_sql` / `apply_migration`), a CLI kasy działa tylko na lokalnym Postgresie.
 - Nowe migracje: najpierw lokalnie (`python -m kasa migrate`), potem ten sam plik przez konektor
   `apply_migration` + ręczny INSERT do `schema_migrations` (version, name, sha256 pliku).

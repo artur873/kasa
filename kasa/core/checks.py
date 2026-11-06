@@ -520,6 +520,7 @@ def check_balance_continuity(conn: psycopg.Connection, company_id: Any, period_s
             if earlier is not None:
                 opening = int(earlier[1])
                 opening_source = f"CLBD/PRCD of {earlier[0].isoformat()} + operations until the period"
+                later_reference = True        # the bank's balance before the period anchors the opening
         if opening is None:
             # the first closing (or interim booked) balance after the period, carried back by the operations in
             # between - for banks that give no balance per operation and no dated balance (Bank Millennium)
@@ -559,7 +560,7 @@ def check_balance_continuity(conn: psycopg.Connection, company_id: Any, period_s
             continue
 
         mismatches: list[dict[str, Any]] = []
-        references = 1 if later_reference else 0      # the bank's balance after the period anchors the opening
+        references = 1 if later_reference else 0      # a bank balance outside the period anchors the opening
         running = opening
         day = period_start
         while day <= period_end:
@@ -625,6 +626,13 @@ def check_mpp(conn: psycopg.Connection, company_id: Any, period_start: date, per
          WHERE t.company_id = %s AND t.superseded_by IS NULL AND t.status = 'booked' AND a.kind <> 'vat'
            AND t.amount_minor > 0 AND t.extracted -> 'mpp' ->> 'vat_minor' IS NOT NULL
            AND t.booking_date BETWEEN %s AND %s
+           AND t.op_type IS DISTINCT FROM 'own'
+           -- a transfer from our own account (VAT -> current with the /VAT/ block in its title) is not a split
+           -- payment, even when that account became known after the operation was classified
+           AND NOT EXISTS (SELECT 1 FROM l1_bank_account o
+                            WHERE o.company_id = t.company_id
+                              AND right(o.iban, 26) = right(regexp_replace(coalesce(t.counterparty_iban_raw, ''),
+                                                                           '[^0-9A-Za-z]', '', 'g'), 26))
         """,
         (company_id, period_start, period_end),
     ).fetchone()

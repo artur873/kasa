@@ -101,7 +101,21 @@ kolejności księgowania, a bez salda otwarcia - wstecz od salda zamknięcia, i 
   3 miesiące). Kasa zapisuje wszystko, co przyszło: fakty są idempotentne, a kontrole liczą się per okres.
 * **Rachunków VAT nie ma w zgodzie PSD2** (ani mBank, ani Millennium nie dają ich wybrać). Ruchy na rachunkach
   VAT trzeba wczytywać z wyciągów: `bank import-mt940 <plik> --company odm --kind vat` (albo `import-camt`);
-  bez nich kontrola MPP jest czerwona.
+  bez nich kontrola MPP jest czerwona. Millennium: rachunek VAT bez historii - wyciąg niepotrzebny.
+* **MT940 rachunku VAT z mBanku** (wyciąg roczny 5.11.2025-5.11.2026): saldo dodatnie oznaczone `D`
+  (`:60F:D...30957,00`) - gdy wyciąg zamyka się co do grosza dopiero z odwróconymi znakami, kasa je odwraca i
+  pisze o tym w wyniku importu; `:86:` podwójne (sam kod `D94`, potem pole z podpolami `~20`...) i kod z literą;
+  w każdej operacji kontrahentem jest nasz rachunek bieżący (`~38`), więc na rachunku VAT o rodzaju decyduje
+  treść: blok `/VAT/` → `vat`, `N<NIP> ... 26M09 ... PIT-4R` → `tax`, „ZUS” → `zus`, dopiero potem przelew własny.
+  Operacje bez referencji banku (`//`) są rozpoznawane po odcisku (z tytułem) - zmiana parsera tytułu tworzy
+  wtedy nowe fakty zamiast nowych wersji.
+* **Split payment w mBanku to trzy operacje:** wpływ brutto na rachunek bieżący, przeksięgowanie VAT z bieżącego
+  (−VAT) i wpływ VAT na rachunek VAT. Kasa skleja je w jedną grupę (`main`, `vat_rebooking`, `vat_leg`), także gdy
+  rachunek VAT poznała później niż operacje rachunku bieżącego. Rachunek VAT wiąże się z bieżącym po BIC, a bez
+  BIC (EB, MT940) - po numerze banku w IBAN (cyfry 5-8). Przelew z własnego rachunku z blokiem `/VAT/` w tytule
+  nie jest wpływem split payment.
+* **Wynik na danych 11.2025-11.2026:** MPP zgodne co do grosza w 12.2025-10.2026 (311 grup); 11.2025 i 11.2026
+  to krawędzie okresu wyciągu VAT.
 
 **Idempotencja i wersje.** Ten sam zakres pobrany ponownie: te same bajty → ten sam `l0_raw`; ta sama
 operacja (po `entry_reference`, a bez niego po `fingerprint`) → bez zmian, chyba że bank zmienił jej treść

@@ -468,3 +468,47 @@ def test_balance_check_finds_the_order_of_a_transfer_and_its_return(conn, compan
         """, (company.id, account.id, day))
     [check] = check_balance_continuity(conn, company.id, day, day, record=False)
     assert check.ok and check.detail["closing_minor"] == 8500, check.detail
+
+
+def test_mbank_vat_statement_closes_the_split_payment(conn, company):
+    """mBank, 11.2026: the MT940 of the VAT account marks positive balances with D, repeats :86: (bare code, then the
+    structured field with a letter code "D94"), and names our current account as the counterparty of every operation;
+    the current account (EnableBanking) moves the VAT part to the VAT account by itself (a rebooking classified before
+    the VAT account was known)."""
+    from kasa.core.bank import mt940
+
+    current = _test_account(conn, company, uid="cur", iban="PL98114020040000390000000001")
+    day = date(2026, 10, 5)
+    title = ["/VAT/368,00/IDC/5342650778/INV/72/09/2026/TXT/ KODP594775KODK"]
+    entries = [
+        BankEntry(source="test", account_iban=current.iban, locator="m", entry_reference="M1", status="booked",
+                  booking_date=day, amount_minor=196800, currency="PLN", title_lines=title,
+                  counterparty_name="Klient sp. z o.o.", counterparty_iban="61109010140000071219812874",
+                  bank_tx_code="RCDT/DMCT"),
+        BankEntry(source="test", account_iban=current.iban, locator="r", entry_reference="M2", status="booked",
+                  booking_date=day, amount_minor=-36800, currency="PLN", title_lines=title,
+                  counterparty_name="FIRMA TESTOWA", counterparty_iban="28114020040000350000000002", bank_tx_code="ICDT/DMCT"),
+    ]
+    store_entries(conn, company, current, entries, {}, IngestResult(current.iban, "test"))
+
+    payload = (DATA / "mbank_vat_2610.mt940").read_bytes()
+    [statement] = mt940.parse(payload)
+    assert statement.notes and [b.amount_minor for b in statement.balances] == [100000, 116800]
+    assert statement.entries[0].title == title[0] and statement.entries[0].counterparty_iban == "PL98114020040000390000000001"
+    [result] = import_statement_file(conn, company, payload, fmt="mt940", account_kind="vat",
+                                     filename="mbank_vat_2610.mt940")
+    assert any("odwrócone" in w for w in result.warnings)
+    ops = dict(conn.execute("SELECT t.entry_reference IS NULL, t.op_type::text FROM l1_bank_transaction t "
+                            "JOIN l1_bank_account a ON a.id = t.account_id WHERE a.iban = %s AND t.amount_minor < 0",
+                            ("PL28114020040000350000000002",)).fetchall())
+    assert ops == {True: "tax"}
+    assert conn.execute("SELECT parent_account_id = %s FROM l1_bank_account WHERE iban = %s",
+                        (current.id, "PL28114020040000350000000002")).fetchone()[0]
+    roles = conn.execute("SELECT mpp_role::text, count(*) FROM l1_bank_transaction WHERE company_id = %s "
+                         "AND mpp_group_id IS NOT NULL GROUP BY 1 ORDER BY 1", (company.id,)).fetchall()
+    assert roles == [("main", 1), ("vat_leg", 1), ("vat_rebooking", 1)]
+    mpp = check_mpp(conn, company.id, date(2026, 10, 1), date(2026, 10, 31), record=False)
+    assert mpp.ok and mpp.detail["vat_blocks_minor"] == 36800 and not mpp.detail["legs_without_group"], mpp.detail
+    vat_check = [c for c in check_balance_continuity(conn, company.id, date(2026, 10, 1), date(2026, 10, 31),
+                                                     record=False) if c.scope == "PL28114020040000350000000002"]
+    assert vat_check[0].ok, vat_check[0].detail

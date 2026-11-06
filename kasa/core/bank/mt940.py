@@ -77,7 +77,8 @@ def _balance(value: str, iban: str, kind: str, locator: str) -> BankBalance:
 def parse_86(text: str) -> dict[str, object]:
     """Split ``:86:`` into code, description, title, counterparty name and IBAN."""
     flat = text.replace("\n", "")
-    if len(flat) > 4 and flat[:3].isdigit() and flat[3] in "~^<":
+    # the transaction code is three digits ("020~00...") or, in mBank, a letter and two digits ("D94~00...")
+    if len(flat) > 4 and re.fullmatch(r"[A-Z0-9]\d{2}", flat[:3]) and flat[3] in "~^<":
         sep = flat[3]
         parts: dict[str, str] = {}
         for chunk in flat[4:].split(sep):
@@ -139,7 +140,9 @@ def parse(payload: bytes) -> list[ParsedStatement]:
             close_entry()
             pending_entry = {"line": value, "info": ""}
         elif tag == "86" and pending_entry is not None:
-            pending_entry["info"] = value
+            # mBank repeats :86: - first the bare code (":86:D94"), then the structured field; keep the fullest
+            if len(value.strip()) >= len(pending_entry["info"].strip()):
+                pending_entry["info"] = value
     close_statement()
     if not statements:
         raise Mt940Error("plik nie zawiera wyciągu MT940 (brak :20:)")
@@ -160,12 +163,33 @@ def _build(data: dict, index: int) -> ParsedStatement:
         # (end of that day, ISO PRCD); dated on the first booking day it is that day's opening.
         if balance.balance_type == "OPBD" and first_booking and balance.reference_date < first_booking:
             balances[i] = balance.model_copy(update={"balance_type": "PRCD"})
+    notes = _fix_balance_marks(balances, entries, data["ref"])
     opening = [b.reference_date for b in balances if b.balance_type == "OPBD"]
     opening += [b.reference_date + timedelta(days=1) for b in balances if b.balance_type == "PRCD"]
     closing = [b.reference_date for b in balances if b.balance_type == "CLBD"]
     return ParsedStatement(source=SOURCE, account_iban=iban, currency=currency, statement_id=data["ref"],
                            period_from=min(opening) if opening else first_booking,
-                           period_to=max(closing) if closing else None, balances=balances, entries=entries)
+                           period_to=max(closing) if closing else None, balances=balances, entries=entries,
+                           notes=notes)
+
+
+def _fix_balance_marks(balances: list[BankBalance], entries: list[BankEntry], ref: str) -> list[str]:
+    """mBank's MT940 of a VAT account (11.2026) marks a positive balance with ``D``: ``:60F:D...30957,00`` +
+    the operations = ``:62F:D...22803,51`` only when both are positive. When the statement does not close with the
+    marks as given but closes to the grosz with every balance mark inverted, the balances are inverted (in place)
+    and a note says so; otherwise nothing changes (the truth check reports the gap)."""
+    openings = [b for b in balances if b.balance_type in ("OPBD", "PRCD")]
+    closings = [b for b in balances if b.balance_type == "CLBD"]
+    if len(openings) != 1 or len(closings) != 1:
+        return []
+    booked = sum(e.amount_minor for e in entries if e.status == "booked")
+    opening, closing = openings[0].amount_minor, closings[0].amount_minor
+    if opening + booked == closing or -opening + booked != -closing:
+        return []
+    for i, balance in enumerate(balances):
+        balances[i] = balance.model_copy(update={"amount_minor": -balance.amount_minor,
+                                                 "locator": f"{balance.locator}(mark inverted)"})
+    return [f"wyciąg {ref}: znaki D/C sald (:60F:/:62F:) odwrócone - z odwróconymi wyciąg zamyka się co do grosza"]
 
 
 def _entry(data: dict, iban: str, currency: str, locator: str) -> BankEntry:

@@ -485,6 +485,10 @@ def is_tax_microaccount(iban: str | None) -> bool:
     return bool(iban) and iban.startswith("PL") and iban[4:12] == "10100071" and iban[12:15] == "222"
 
 
+# A tax transfer in the layout of the bank (mBank, VAT account): "N5342650778 ... 25M10 ... PIT-8AR"
+_TAX_TRANSFER_RE = re.compile(r"\b[NPR]\d{10}\b.*\b\d{2}[MKRPDJ]\d{2}\b", re.DOTALL)
+
+
 def classify_op_type(entry: BankEntry, extracted: dict[str, Any], *, own_ibans: set[str],
                      account_kind: str = "current") -> tuple[str, str]:
     """(op_type, reason): transfer, instant, card, blik, fee, tax, zus, own, vat, direct_debit,
@@ -499,6 +503,15 @@ def classify_op_type(entry: BankEntry, extracted: dict[str, Any], *, own_ibans: 
     party = fold(entry.counterparty_name or "")
     iban = _iban_or_none(entry.counterparty_iban)
 
+    if account_kind == "vat":
+        # mBank gives our current account as the counterparty of every operation on the VAT account (the bank
+        # moves the VAT part through it), so on a VAT account the content decides before the counterparty IBAN.
+        if extracted.get("mpp") or "mpp" in desc:
+            return "vat", "split payment leg on the VAT account"
+        if _TAX_TRANSFER_RE.search(entry.title):
+            return "tax", "tax transfer from the VAT account (taxpayer id and period in the title)"
+        if re.search(r"\bzus\b", title):
+            return "zus", "ZUS payment from the VAT account"
     if iban and iban in own_ibans:
         return "own", "counterparty IBAN is an own account"
     if "wlasny" in desc or "przeksiegowanie" in desc or "przeksiegowanie z rachunku vat" in title:

@@ -93,5 +93,6 @@ class ParsedStatement(BaseModel):
     statement_id: str | None = None
     period_from: date | None = None
     period_to: date | None = None
+    notes: list[str] = Field(default_factory=list)     # what the parser corrected, for the import result
     balances: list[BankBalance] = Field(default_factory=list)
     entries: list[BankEntry] = Field(default_factory=list)

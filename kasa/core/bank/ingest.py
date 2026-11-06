@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 import uuid
 from collections import Counter
 from collections.abc import Iterable, Sequence
@@ -144,18 +145,23 @@ def upsert_account(conn: psycopg.Connection, company_id: UUID, info: AccountInfo
 
 
 def _link_vat_accounts(conn: psycopg.Connection, company_id: UUID) -> None:
-    """A VAT account belongs to the only PLN current account of the same bank."""
+    """A VAT account belongs to the only PLN current account of the same bank: the same BIC, or - when the BIC is
+    not known (EnableBanking and MT940 of mBank/Millennium give none) - the same bank number in a Polish IBAN
+    (digits 5-8: 1140 mBank, 1160 Millennium)."""
     conn.execute(
         """
+        WITH bank AS (
+            SELECT id, company_id, kind, currency,
+                   coalesce(bic, CASE WHEN iban LIKE 'PL%%' THEN 'PL-' || substr(iban, 5, 4) END) AS bank_key
+              FROM l1_bank_account WHERE company_id = %(c)s
+        )
         UPDATE l1_bank_account v
            SET parent_account_id = c.id
-          FROM l1_bank_account c
-         WHERE v.company_id = %(c)s AND v.kind = 'vat' AND v.parent_account_id IS NULL
-           AND c.company_id = v.company_id AND c.kind = 'current' AND c.currency = 'PLN'
-           AND c.bic IS NOT DISTINCT FROM v.bic
-           AND (SELECT count(*) FROM l1_bank_account x
-                 WHERE x.company_id = v.company_id AND x.kind = 'current' AND x.currency = 'PLN'
-                   AND x.bic IS NOT DISTINCT FROM v.bic) = 1
+          FROM bank vb, bank c
+         WHERE vb.id = v.id AND v.company_id = %(c)s AND v.kind = 'vat' AND v.parent_account_id IS NULL
+           AND c.kind = 'current' AND c.currency = 'PLN' AND c.bank_key IS NOT DISTINCT FROM vb.bank_key
+           AND (SELECT count(*) FROM bank x
+                 WHERE x.kind = 'current' AND x.currency = 'PLN' AND x.bank_key IS NOT DISTINCT FROM vb.bank_key) = 1
         """,
         {"c": company_id},
     )
@@ -472,7 +478,7 @@ def _content_changed(existing: tuple, entry: BankEntry) -> list[str]:
     """Fields of the bank's content that differ from the stored fact (the same identity, the same parser version):
     the bank corrected the operation, so it gets a new version. Only the same source is compared: the same
     operation from another channel (camt.053 after EnableBanking) is the same fact, told with other fields. A
-    computed balance after is ours, not the bank's, and does not count."""
+    computed balance after counts too: a better anchor (a corrected opening balance) corrects the fact."""
     (_id, _version, _superseded, _successor, status, booking, value, tx_date, amount, currency, title, name, iban,
      balance, balance_computed, source) = existing
     if source != entry.source:
@@ -484,8 +490,7 @@ def _content_changed(existing: tuple, entry: BankEntry) -> list[str]:
         "title": (title, entry.title or None), "counterparty_name": (name, entry.counterparty_name),
         "counterparty_iban": (iban, entry.counterparty_iban),
     }
-    if not balance_computed and not entry.balance_after_computed:
-        pairs["balance_after_minor"] = (balance, entry.balance_after_minor)
+    pairs["balance_after_minor"] = (balance, entry.balance_after_minor)
     return [field for field, (old, new) in pairs.items() if old != new]
 
 
@@ -582,8 +587,11 @@ def store_entries(
                 if not changed:
                     result.unchanged += 1
                     continue
-                result.warnings.append(f"{entry.entry_reference or entry.locator}: bank zmienił treść operacji "
-                                       f"({', '.join(changed)}) - nowa wersja faktu")
+                if changed == ["balance_after_minor"] and entry.balance_after_computed:
+                    reason = "saldo po operacji przeliczone od poprawionego salda"
+                else:
+                    reason = f"bank zmienił treść operacji ({', '.join(changed)})"
+                result.warnings.append(f"{entry.entry_reference or entry.locator}: {reason} - nowa wersja faktu")
             if superseded_by is not None:
                 existing = None                # only an old version remains; write a fresh current row
         new_id = _insert_transaction(conn, company, account, item, context, words)
@@ -698,11 +706,47 @@ def glue_mpp(conn: psycopg.Connection, company_id: UUID, date_from: date | None 
     taken = {r[0] for r in rows if r[11] is not None}
     vat_accounts = {r[1]: r[3] for r in rows if r[2] == "vat"}
     grouped = 0
+    # own accounts known now - an operation classified before its counterparty account was registered (the VAT
+    # account from a statement file after EnableBanking) still says "other"
+    own_nrb = {row[0][-26:] for row in conn.execute(
+        "SELECT iban FROM l1_bank_account WHERE company_id = %s", (company_id,)).fetchall()}
+
+    def is_own(r: tuple) -> bool:
+        cp = re.sub(r"[^0-9A-Za-z]", "", r[8] or "")
+        return r[10] == "own" or (len(cp) >= 26 and cp[-26:] in own_nrb)
 
     def key(mpp: dict | None) -> tuple | None:
         if not mpp:
             return None
         return (mpp.get("vat_minor"), mpp.get("idc_nip") or mpp.get("idc"), mpp.get("inv_normalized"))
+
+    def rebookings(current_id: UUID, vat_account_id: UUID, day: date, vat_minor: int) -> list[tuple[UUID, str]]:
+        """Own transfers between the VAT account and its current account for the VAT amount, within the window."""
+        found = []
+        for r in rows:
+            if r[0] in taken or r[10] == "vat" or not is_own(r) or abs(r[4] - day) > MPP_DATE_TOLERANCE \
+                    or abs(r[5]) != vat_minor:
+                continue
+            if r[1] in (vat_account_id, current_id) and (r[0], "vat_rebooking") not in found:
+                found.append((r[0], "vat_rebooking"))
+                taken.add(r[0])
+        return found
+
+    def write(group_id: UUID, members: list[tuple[UUID, str]], main_id: UUID, vat_minor: int) -> int:
+        count = 0
+        for member_id, role in members:
+            count += conn.execute(
+                """
+                UPDATE l1_bank_transaction
+                   SET mpp_group_id = %s, mpp_role = %s,
+                       evidence = evidence || jsonb_build_object('mpp_group', %s::jsonb)
+                 WHERE id = %s AND mpp_group_id IS NULL
+                """,
+                (group_id, role, Jsonb({"main": str(main_id), "vat_minor": vat_minor, "rule": "glue_mpp/1"}),
+                 member_id),
+            ).rowcount
+            taken.add(member_id)
+        return count
 
     for main in rows:
         main_id, account_id, kind, _parent, day, amount, mpp, cp_id, cp_iban, fp, _op, group = main
@@ -715,7 +759,7 @@ def glue_mpp(conn: psycopg.Connection, company_id: UUID, date_from: date | None 
             if r[0] not in taken and r[2] == "vat" and r[5] == sign * vat_minor
             and abs(r[4] - day) <= MPP_DATE_TOLERANCE
             and (vat_accounts.get(r[1]) in (None, account_id))
-            and r[10] != "own"
+            and (r[10] == "vat" or not is_own(r))
         ]
         candidates.sort(key=lambda r: (key(r[6]) != key(mpp),
                                        not ((cp_id and r[7] == cp_id) or (cp_iban and r[8] == cp_iban)),
@@ -727,25 +771,18 @@ def glue_mpp(conn: psycopg.Connection, company_id: UUID, date_from: date | None 
             continue
         group_id = uuid.uuid5(MPP_GROUP_NAMESPACE, f"{company_id}:{account_id}:{fp}")
         members = [(main_id, "main"), (leg[0], "vat_leg")]
-        # Rebooking between this VAT account and its current account for the same VAT amount.
-        for r in rows:
-            if r[0] in taken or r[10] != "own" or abs(r[4] - day) > MPP_DATE_TOLERANCE or abs(r[5]) != vat_minor:
-                continue
-            if (r[1] == leg[1] or r[1] == account_id) and (r[0], "vat_rebooking") not in members:
-                members.append((r[0], "vat_rebooking"))
-        for member_id, role in members:
-            updated = conn.execute(
-                """
-                UPDATE l1_bank_transaction
-                   SET mpp_group_id = %s, mpp_role = %s,
-                       evidence = evidence || jsonb_build_object('mpp_group', %s::jsonb)
-                 WHERE id = %s AND mpp_group_id IS NULL
-                """,
-                (group_id, role, Jsonb({"main": str(main_id), "vat_minor": vat_minor, "rule": "glue_mpp/1"}),
-                 member_id),
-            ).rowcount
-            grouped += updated
-            taken.add(member_id)
+        members += rebookings(account_id, leg[1], day, vat_minor)
+        grouped += write(group_id, members, main_id, vat_minor)
+
+    # Groups made before their rebooking was recognisable (the VAT account registered later) get it now.
+    legs_of = {r[11]: r[1] for r in rows if r[11] is not None and r[2] == "vat"}
+    for main in rows:
+        main_id, account_id, kind, _parent, day, _amount, mpp, *_rest, group = main
+        if group is None or kind == "vat" or not mpp or not mpp.get("vat_minor") or group not in legs_of:
+            continue
+        found = rebookings(account_id, legs_of[group], day, mpp["vat_minor"])
+        if found:
+            grouped += write(group, found, main_id, mpp["vat_minor"])
     return grouped
 
 
@@ -847,6 +884,7 @@ def import_statement_file(conn: psycopg.Connection, company: Company, payload: b
         result = IngestResult(account_iban=row.iban, source=fmt)
         result.raw_created, result.raw_existing = (1, 0) if raw.created else (0, 1)
         result.first_booking, result.last_booking = statement.period_from, statement.period_to
+        result.warnings.extend(statement.notes)
         result.balances_stored = store_balances(conn, company.id, row, statement.balances, raw.id)
         meta = {"endpoint": f"file:{filename or fmt}", "statement_id": statement.statement_id}
         raws = {id(e): (raw, meta) for e in statement.entries}
